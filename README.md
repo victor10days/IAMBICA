@@ -1,16 +1,78 @@
-# React + Vite
+# IAMBICA - Festival Website
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A modern, interactive single-page website for Festival Iámbica featuring 3D animations, interactive elements, and OSC integration for creative control.
 
-Currently, two official plugins are available:
+## Quick Start
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+```bash
+# Install dependencies
+npm install
 
-## React Compiler
+# Run development server
+npm run dev
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+# Build for production
+npm run build
 
-## Expanding the ESLint configuration
+# Start OSC bridge server
+npm run osc-bridge
+```
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+## Project Structure
+
+```
+IAMBICA/
+├── docs/               # Documentation
+├── src/
+│   ├── components/     # Reusable components
+│   ├── hooks/          # Custom React hooks
+│   │   └── useAudio.js # Audio system hook
+│   ├── pages/          # Page components
+│   │   ├── Interact.jsx      # OSC interaction page
+│   │   └── SinglePageHome.jsx # Main homepage
+│   ├── App.jsx         # Main app component
+│   └── main.jsx        # Entry point
+├── osc-bridge.js       # OSC WebSocket bridge
+└── vite.config.js      # Vite configuration
+```
+
+## Features
+
+- **Single-Page Scroll Architecture** - Smooth scrolling sections with snap-to behavior
+- **3D Interactive Cube** - p5.js WEBGL cube with draggable rotation
+- **Triangle Animations** - Physics-based rope animations following mouse
+- **Audio System** - Web Audio API integration with collision sounds
+- **OSC Integration** - Real-time OSC control via WebSockets for TouchDesigner/Max MSP
+- **Mobile Optimized** - Fully responsive with touch support
+
+## Documentation
+
+- [OSC Setup Guide](docs/OSC_SETUP.md) - Configure OSC integration
+- [Audio Guide](docs/AUDIO_GUIDE.md) - Audio system details
+- [Mobile Quick Start](docs/MOBILE_QUICK_START.md) - Mobile device setup
+- [Project Structure](docs/PROJECT_STRUCTURE.md) - Detailed architecture
+
+## Performance Optimizations
+
+- React.memo for expensive components
+- Throttled animation updates (every 3 frames)
+- Memoized constants and arrays
+- Efficient requestAnimationFrame usage
+- Optimized p5.js canvas sizing
+
+## Tech Stack
+
+- React 19
+- p5.js 2.2
+- React Router 7
+- Vite (Rolldown)
+- Web Audio API
+- WebSockets + OSC
+
+## Development
+
+The project uses Vite with Rolldown for fast builds. All interactive elements are optimized for 60fps performance.
+
+---
+
+© 2026 Festival Iámbica. Puerto Rico.
