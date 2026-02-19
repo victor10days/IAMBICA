@@ -195,9 +195,9 @@ To outline the major phases of the project and identify key milestones that guid
 | Project Stage                      | Estimated Timeframe | Status      |
 |:-----------------------------------|:--------------------|:------------|
 | Stage 1: Idea Development          | Completed           | ✓ Complete  |
-| Stage 2: Project Charter           | Weeks 1–4           | In Progress |
-| Stage 3: Technical Documentation   | Weeks 5–6           | Pending     |
-| Stage 4: MVP Development           | Weeks 7–10          | Pending     |
+| Stage 2: Project Charter           | Weeks 1–4           | ✓ Complete |
+| Stage 3: Technical Documentation   | Weeks 5–6           | ✓ Complete  |
+| Stage 4: MVP Development           | Weeks 7–10          | ✓ Complete  |
 | Stage 5: Project Closure           | Weeks 11–12         | Pending     |
 
 ### Planning Note
