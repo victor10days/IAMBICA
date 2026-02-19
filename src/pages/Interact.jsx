@@ -1,13 +1,31 @@
-import React, { useRef, useEffect, useState } from 'react';
+import { useRef, useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
+import { useMobile } from '../hooks/useMobile';
+import { COLORS, FONT } from '../styles/theme';
+
+const MODES = [
+  { id: 'separate', label: 'Separado', desc: 'Cada usuario tiene su propio canal' },
+  { id: 'single', label: 'Individual', desc: 'Un usuario activo a la vez' },
+  { id: 'blended', label: 'Mezclado', desc: 'Todas las entradas promediadas' },
+  { id: 'zones', label: 'Zonas', desc: 'Lienzo dividido en regiones' }
+];
 
 const Interact = () => {
   const canvasRef = useRef(null);
+  const wsRef = useRef(null);
+
+  // Use refs for values that the animation loop needs (avoids re-creating loop)
+  const mousePosRef = useRef({ x: 0.5, y: 0.5 });
+  const isPressingRef = useRef(false);
+  const isConnectedRef = useRef(false);
+  const currentModeRef = useRef('separate');
+  const isActiveRef = useRef(true);
+  const userZoneRef = useRef(null);
+
+  // State for UI updates
   const [isConnected, setIsConnected] = useState(false);
-  const [wsConnection, setWsConnection] = useState(null);
-  // Auto-detect local network IP for mobile convenience
+  const [connectionStatus, setConnectionStatus] = useState('disconnected'); // 'disconnected' | 'connecting' | 'connected' | 'error'
   const [oscHost, setOscHost] = useState(() => {
-    // On mobile, try to get the local network IP from window.location
     if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
       return window.location.hostname;
     }
@@ -16,104 +34,190 @@ const Interact = () => {
   const [oscPort, setOscPort] = useState('8000');
   const [mousePos, setMousePos] = useState({ x: 0.5, y: 0.5 });
   const [isPressing, setIsPressing] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
-  // Connect to OSC bridge (WebSocket server)
-  const connectOSC = () => {
+  // Multi-user state
+  const [userId, setUserId] = useState(null);
+  const [currentMode, setCurrentMode] = useState('separate');
+  const [totalUsers, setTotalUsers] = useState(0);
+  const [isActive, setIsActive] = useState(true);
+  const [userZone, setUserZone] = useState(null);
+
+  const { isMobile } = useMobile();
+  const connectionStatusRef = useRef(connectionStatus);
+
+  // Sync refs with state
+  useEffect(() => { isConnectedRef.current = isConnected; }, [isConnected]);
+  useEffect(() => { currentModeRef.current = currentMode; }, [currentMode]);
+  useEffect(() => { isActiveRef.current = isActive; }, [isActive]);
+  useEffect(() => { userZoneRef.current = userZone; }, [userZone]);
+  useEffect(() => { connectionStatusRef.current = connectionStatus; }, [connectionStatus]);
+
+  // Send OSC message
+  const sendOSC = useCallback((address, args) => {
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({ address, args }));
+    }
+  }, []);
+
+  // Connect to OSC bridge
+  const connectOSC = useCallback(() => {
+    // Close existing connection if any
+    if (wsRef.current) {
+      wsRef.current.close();
+      wsRef.current = null;
+    }
+
+    setConnectionStatus('connecting');
+
     try {
       const ws = new WebSocket(`ws://${oscHost}:${oscPort}`);
+      wsRef.current = ws;
 
       ws.onopen = () => {
         setIsConnected(true);
+        setConnectionStatus('connected');
         console.log('Connected to OSC bridge');
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+
+          if (data.type === 'state') {
+            setUserId(data.userId);
+            setCurrentMode(data.mode);
+            setTotalUsers(data.totalUsers);
+            setIsActive(data.isActive);
+            setUserZone(data.zone);
+          } else if (data.type === 'userCount') {
+            setTotalUsers(data.count);
+          }
+        } catch (e) {
+          console.error('Error parsing server message:', e);
+        }
       };
 
       ws.onerror = (error) => {
         console.error('WebSocket error:', error);
-        setIsConnected(false);
+        setConnectionStatus('error');
       };
 
       ws.onclose = () => {
         setIsConnected(false);
+        setUserId(null);
+        if (connectionStatusRef.current !== 'error') {
+          setConnectionStatus('disconnected');
+        }
         console.log('Disconnected from OSC bridge');
       };
 
-      setWsConnection(ws);
     } catch (error) {
       console.error('Connection error:', error);
+      setConnectionStatus('error');
       setIsConnected(false);
     }
-  };
+  }, [oscHost, oscPort]);
 
-  const disconnectOSC = () => {
-    if (wsConnection) {
-      wsConnection.close();
-      setWsConnection(null);
-      setIsConnected(false);
+  const disconnectOSC = useCallback(() => {
+    if (wsRef.current) {
+      wsRef.current.close();
+      wsRef.current = null;
     }
-  };
-
-  // Send OSC message via WebSocket
-  const sendOSC = (address, args) => {
-    if (wsConnection && wsConnection.readyState === WebSocket.OPEN) {
-      wsConnection.send(JSON.stringify({
-        address: address,
-        args: args
-      }));
-    }
-  };
-
-  // Detect mobile device
-  useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth <= 768 || 'ontouchstart' in window);
-    };
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
+    setIsConnected(false);
+    setUserId(null);
+    setConnectionStatus('disconnected');
   }, []);
 
+  // Cleanup WebSocket on unmount
+  useEffect(() => {
+    return () => {
+      if (wsRef.current) {
+        wsRef.current.close();
+        wsRef.current = null;
+      }
+    };
+  }, []);
+
+  // Change mode
+  const changeMode = useCallback((newMode) => {
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({ type: 'setMode', mode: newMode }));
+    }
+  }, []);
+
+  // Request to become active user
+  const requestActive = useCallback(() => {
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({ type: 'requestActive' }));
+    }
+  }, []);
+
+
   // Handle mouse/touch interaction
-  const handleInteraction = (e) => {
+  const handleInteraction = useCallback((clientX, clientY) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
     const rect = canvas.getBoundingClientRect();
-    let clientX, clientY;
+    const x = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+    const y = Math.max(0, Math.min(1, (clientY - rect.top) / rect.height));
 
-    // Handle both mouse and touch events
-    if (e.touches && e.touches.length > 0) {
-      clientX = e.touches[0].clientX;
-      clientY = e.touches[0].clientY;
-    } else {
-      clientX = e.clientX;
-      clientY = e.clientY;
-    }
-
-    const x = (clientX - rect.left) / rect.width;
-    const y = (clientY - rect.top) / rect.height;
-
+    mousePosRef.current = { x, y };
     setMousePos({ x, y });
 
-    // Send normalized coordinates (0-1)
     sendOSC('/mouse/x', [x]);
     sendOSC('/mouse/y', [y]);
     sendOSC('/mouse/xy', [x, y]);
-  };
+  }, [sendOSC]);
 
-  const handlePressStart = (e) => {
+  const handlePressStart = useCallback((clientX, clientY) => {
+    isPressingRef.current = true;
     setIsPressing(true);
     sendOSC('/press', [1]);
-    handleInteraction(e);
-  };
+    handleInteraction(clientX, clientY);
+  }, [sendOSC, handleInteraction]);
 
-  const handlePressEnd = () => {
+  const handlePressEnd = useCallback(() => {
+    isPressingRef.current = false;
     setIsPressing(false);
     sendOSC('/press', [0]);
-  };
+  }, [sendOSC]);
 
-  // Animation loop
+  // Mouse event handlers
+  const onMouseMove = useCallback((e) => {
+    handleInteraction(e.clientX, e.clientY);
+  }, [handleInteraction]);
+
+  const onMouseDown = useCallback((e) => {
+    handlePressStart(e.clientX, e.clientY);
+  }, [handlePressStart]);
+
+  const onMouseUp = useCallback(() => {
+    handlePressEnd();
+  }, [handlePressEnd]);
+
+  // Touch event handlers
+  const onTouchMove = useCallback((e) => {
+    e.preventDefault();
+    if (e.touches.length > 0) {
+      handleInteraction(e.touches[0].clientX, e.touches[0].clientY);
+    }
+  }, [handleInteraction]);
+
+  const onTouchStart = useCallback((e) => {
+    e.preventDefault();
+    if (e.touches.length > 0) {
+      handlePressStart(e.touches[0].clientX, e.touches[0].clientY);
+    }
+  }, [handlePressStart]);
+
+  const onTouchEnd = useCallback((e) => {
+    e.preventDefault();
+    handlePressEnd();
+  }, [handlePressEnd]);
+
+  // Single persistent animation loop
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -122,12 +226,19 @@ const Interact = () => {
     let animationId;
 
     const draw = () => {
+      const pos = mousePosRef.current;
+      const pressing = isPressingRef.current;
+      const connected = isConnectedRef.current;
+      const mode = currentModeRef.current;
+      const active = isActiveRef.current;
+      const zone = userZoneRef.current;
+
       // Clear canvas
-      ctx.fillStyle = '#FAF3E1';
+      ctx.fillStyle = COLORS.cream;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
       // Draw grid
-      ctx.strokeStyle = '#F5E7C6';
+      ctx.strokeStyle = COLORS.tan;
       ctx.lineWidth = 1;
 
       for (let i = 0; i <= 10; i++) {
@@ -145,30 +256,79 @@ const Interact = () => {
         ctx.stroke();
       }
 
-      // Draw cursor position
-      const cursorX = mousePos.x * canvas.width;
-      const cursorY = mousePos.y * canvas.height;
+      // Draw zone overlay if in zones mode
+      if (mode === 'zones' && zone) {
+        const gridSize = 2; // 2x2 grid
+        const zoneWidth = canvas.width / gridSize;
+        const zoneHeight = canvas.height / gridSize;
 
-      // Responsive cursor size
+        // Highlight user's zone
+        const zoneX = ((zone - 1) % gridSize) * zoneWidth;
+        const zoneY = Math.floor((zone - 1) / gridSize) * zoneHeight;
+
+        ctx.fillStyle = 'rgba(210, 43, 43, 0.1)';
+        ctx.fillRect(zoneX, zoneY, zoneWidth, zoneHeight);
+
+        ctx.strokeStyle = COLORS.red;
+        ctx.lineWidth = 3;
+        ctx.strokeRect(zoneX, zoneY, zoneWidth, zoneHeight);
+
+        // Draw zone labels
+        ctx.font = `${Math.min(24, canvas.width / 20)}px ${FONT}`;
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+        ctx.textAlign = 'center';
+        for (let i = 0; i < gridSize * gridSize; i++) {
+          const zx = (i % gridSize) * zoneWidth + zoneWidth / 2;
+          const zy = Math.floor(i / gridSize) * zoneHeight + zoneHeight / 2;
+          ctx.fillText(`Zona ${i + 1}`, zx, zy);
+        }
+        ctx.textAlign = 'left';
+      }
+
+      // Draw "waiting" overlay if not active in single mode
+      if (mode === 'single' && !active) {
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        const fontSize = Math.min(32, canvas.width / 15);
+        ctx.font = `bold ${fontSize}px ${FONT}`;
+        ctx.fillStyle = COLORS.cream;
+        ctx.textAlign = 'center';
+        ctx.fillText('Esperando tu turno...', canvas.width / 2, canvas.height / 2 - 20);
+        ctx.font = `${fontSize * 0.6}px ${FONT}`;
+        ctx.fillText('Toca "Solicitar Control" para activarte', canvas.width / 2, canvas.height / 2 + 20);
+        ctx.textAlign = 'left';
+      }
+
+      // Draw cursor position
+      const cursorX = pos.x * canvas.width;
+      const cursorY = pos.y * canvas.height;
+
       const baseSize = Math.min(canvas.width, canvas.height) * 0.05;
-      const outerRadius = isPressing ? baseSize * 1.3 : baseSize;
-      const innerRadius = isPressing ? baseSize * 0.5 : baseSize * 0.35;
+      const outerRadius = pressing ? baseSize * 1.3 : baseSize;
+      const innerRadius = pressing ? baseSize * 0.5 : baseSize * 0.35;
+
+      // Dim cursor if not active
+      const cursorOpacity = (mode === 'single' && !active) ? 0.3 : 1;
+      ctx.globalAlpha = cursorOpacity;
 
       // Outer circle
-      ctx.strokeStyle = '#D22B2B';
+      ctx.strokeStyle = COLORS.red;
       ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.arc(cursorX, cursorY, outerRadius, 0, Math.PI * 2);
       ctx.stroke();
 
       // Inner circle
-      ctx.fillStyle = isPressing ? '#D22B2B' : '#222222';
+      ctx.fillStyle = pressing ? COLORS.red : COLORS.dark;
       ctx.beginPath();
       ctx.arc(cursorX, cursorY, innerRadius, 0, Math.PI * 2);
       ctx.fill();
 
+      ctx.globalAlpha = 1;
+
       // Connection indicator lines
-      if (isConnected) {
+      if (connected && active) {
         ctx.strokeStyle = 'rgba(210, 43, 43, 0.3)';
         ctx.lineWidth = 1;
 
@@ -189,7 +349,7 @@ const Interact = () => {
     draw();
 
     return () => cancelAnimationFrame(animationId);
-  }, [mousePos, isPressing, isConnected]);
+  }, []); // Empty dependency array - runs once
 
   // Handle canvas resize
   useEffect(() => {
@@ -206,6 +366,73 @@ const Interact = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  // Status badge component
+  const StatusBadge = () => {
+    if (!isConnected) return null;
+
+    let statusText = '';
+    let statusColor = COLORS.red;
+
+    if (currentMode === 'separate') {
+      statusText = `Usuario #${userId}`;
+    } else if (currentMode === 'single') {
+      statusText = isActive ? 'Activo' : 'Esperando';
+      statusColor = isActive ? '#2B8C2B' : COLORS.textLight;
+    } else if (currentMode === 'blended') {
+      statusText = `Mezclando (${totalUsers})`;
+    } else if (currentMode === 'zones') {
+      statusText = `Zona ${userZone}`;
+    }
+
+    return (
+      <div style={{
+        position: 'absolute',
+        bottom: isMobile ? 'max(15px, env(safe-area-inset-bottom))' : 'auto',
+        top: isMobile ? 'auto' : '20px',
+        right: isMobile ? '10px' : '40px',
+        backgroundColor: statusColor,
+        color: COLORS.cream,
+        padding: isMobile ? '6px 12px' : '8px 16px',
+        fontFamily: FONT,
+        fontSize: isMobile ? '12px' : '16px',
+        fontWeight: 'bold',
+        zIndex: 20,
+        display: 'flex',
+        alignItems: 'center',
+        gap: '8px',
+        borderRadius: '2px'
+      }}>
+        <span style={{
+          width: '8px',
+          height: '8px',
+          borderRadius: '50%',
+          backgroundColor: COLORS.cream,
+          animation: 'pulse 2s infinite'
+        }} />
+        {statusText}
+      </div>
+    );
+  };
+
+  // Connection status indicator
+  const getConnectionButtonText = () => {
+    switch (connectionStatus) {
+      case 'connecting': return 'Conectando...';
+      case 'connected': return 'Desconectar';
+      case 'error': return 'Reintentar';
+      default: return 'Conectar';
+    }
+  };
+
+  const getConnectionButtonColor = () => {
+    switch (connectionStatus) {
+      case 'connecting': return COLORS.textLight;
+      case 'connected': return COLORS.red;
+      case 'error': return '#B22222';
+      default: return COLORS.dark;
+    }
+  };
+
   return (
     <div style={{
       position: 'fixed',
@@ -215,9 +442,26 @@ const Interact = () => {
       height: '100vh',
       margin: 0,
       padding: 0,
-      overflow: 'hidden'
+      overflow: 'hidden',
+      touchAction: 'none'
     }}>
-      {/* Header - Hidden on mobile for more space */}
+      <style>{`
+        @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.5; }
+        }
+        * {
+          -webkit-tap-highlight-color: transparent;
+          -webkit-touch-callout: none;
+          -webkit-user-select: none;
+          user-select: none;
+        }
+      `}</style>
+
+      {/* Status Badge */}
+      <StatusBadge />
+
+      {/* Header - Hidden on mobile */}
       {!isMobile && (
         <header style={{
           position: 'absolute',
@@ -228,235 +472,339 @@ const Interact = () => {
           justifyContent: 'space-between',
           alignItems: 'center',
           padding: '20px 40px',
-          zIndex: 10
+          zIndex: 10,
+          pointerEvents: 'none'
         }}>
           <Link to="/" style={{
             fontSize: '24px',
             fontWeight: 'bold',
-            color: '#333',
-            fontFamily: 'Georgia, serif',
-            textDecoration: 'none'
+            color: COLORS.text,
+            fontFamily: FONT,
+            textDecoration: 'none',
+            pointerEvents: 'auto'
           }}>
-            I<span style={{ color: '#D22B2B' }}>A</span>MBICA
+            I<span style={{ color: COLORS.red }}>A</span>MBICA
           </Link>
 
           <nav style={{
             display: 'flex',
             gap: '40px',
-            alignItems: 'center'
+            alignItems: 'center',
+            pointerEvents: 'auto'
           }}>
-            <Link to="/about" style={{
-              color: '#333',
-              textDecoration: 'none',
-              fontFamily: 'Georgia, serif',
-              fontSize: '16px',
-              transition: 'color 0.2s'
-            }}
-            onMouseEnter={(e) => e.target.style.color = '#D22B2B'}
-            onMouseLeave={(e) => e.target.style.color = '#333'}
-            >
-              About Us
-            </Link>
-            <Link to="/mission" style={{
-              color: '#333',
-              textDecoration: 'none',
-              fontFamily: 'Georgia, serif',
-              fontSize: '16px',
-              transition: 'color 0.2s'
-            }}
-            onMouseEnter={(e) => e.target.style.color = '#D22B2B'}
-            onMouseLeave={(e) => e.target.style.color = '#333'}
-            >
-              Mission
-            </Link>
-            <Link to="/philosophy" style={{
-              color: '#333',
-              textDecoration: 'none',
-              fontFamily: 'Georgia, serif',
-              fontSize: '16px',
-              transition: 'color 0.2s'
-            }}
-            onMouseEnter={(e) => e.target.style.color = '#D22B2B'}
-            onMouseLeave={(e) => e.target.style.color = '#333'}
-            >
-              Philosophy
-            </Link>
-            <Link to="/interact" style={{
-              color: '#D22B2B',
-              textDecoration: 'none',
-              fontFamily: 'Georgia, serif',
-              fontSize: '16px'
-            }}>
-              Interact
-            </Link>
+            <Link to="/" state={{ scrollTo: 'about' }} style={{ color: COLORS.text, textDecoration: 'none', fontFamily: FONT, fontSize: '16px' }}>Sobre Nosotros</Link>
+            <Link to="/" state={{ scrollTo: 'mission' }} style={{ color: COLORS.text, textDecoration: 'none', fontFamily: FONT, fontSize: '16px' }}>Misión</Link>
+            <Link to="/" state={{ scrollTo: 'philosophy' }} style={{ color: COLORS.text, textDecoration: 'none', fontFamily: FONT, fontSize: '16px' }}>Filosofía</Link>
+            <Link to="/interact" style={{ color: COLORS.red, textDecoration: 'none', fontFamily: FONT, fontSize: '16px' }}>Interactuar</Link>
           </nav>
         </header>
       )}
 
-      {/* Mobile Menu Button */}
+      {/* Mobile Logo */}
       {isMobile && (
         <Link to="/" style={{
           position: 'absolute',
-          top: '15px',
-          left: '15px',
-          fontSize: '20px',
+          top: 'max(10px, env(safe-area-inset-top))',
+          left: '10px',
+          fontSize: '16px',
           fontWeight: 'bold',
-          color: '#333',
-          fontFamily: 'Georgia, serif',
+          color: COLORS.text,
+          fontFamily: FONT,
           textDecoration: 'none',
-          zIndex: 10,
-          backgroundColor: 'rgba(250, 243, 225, 0.9)',
-          padding: '8px 12px',
-          border: '1px solid #333'
+          zIndex: 20,
+          backgroundColor: 'rgba(250, 243, 225, 0.95)',
+          padding: '5px 8px',
+          border: `1px solid ${COLORS.text}`
         }}>
-          I<span style={{ color: '#D22B2B' }}>A</span>MBICA
+          I<span style={{ color: COLORS.red }}>A</span>MBICA
         </Link>
       )}
 
-      {/* OSC Controls - Responsive */}
+      {/* OSC Controls - Now at TOP */}
       <div style={{
         position: 'absolute',
-        bottom: isMobile ? '10px' : '20px',
+        top: isMobile ? 'max(50px, calc(env(safe-area-inset-top) + 45px))' : '80px',
         left: isMobile ? '10px' : '20px',
         right: isMobile ? '10px' : 'auto',
         zIndex: 10,
         display: 'flex',
         flexDirection: 'column',
-        gap: '10px',
-        backgroundColor: isMobile ? 'rgba(250, 243, 225, 0.95)' : 'transparent',
-        padding: isMobile ? '10px' : '0',
-        border: isMobile ? '1px solid #333' : 'none'
+        gap: '8px',
+        backgroundColor: 'rgba(250, 243, 225, 0.98)',
+        padding: isMobile ? '10px' : '15px',
+        border: `1px solid ${COLORS.text}`,
+        maxWidth: isMobile ? 'none' : '400px',
+        borderRadius: '2px',
+        touchAction: 'manipulation'
       }}>
-        {/* Mobile: Settings Toggle */}
-        {isMobile && (
-          <button
-            onClick={() => setShowSettings(!showSettings)}
-            style={{
-              padding: '8px 16px',
-              fontSize: '14px',
-              backgroundColor: isConnected ? '#D22B2B' : 'transparent',
-              color: isConnected ? '#FAF3E1' : '#333',
-              border: '1px solid #333',
-              cursor: 'pointer',
-              fontFamily: 'Georgia, serif',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center'
-            }}
-          >
-            <span>{isConnected ? '● Connected' : '○ OSC Settings'}</span>
-            <span style={{ fontSize: '10px' }}>
-              {mousePos.x.toFixed(2)}, {mousePos.y.toFixed(2)}
-            </span>
-          </button>
+        {/* Connection status message */}
+        {connectionStatus === 'error' && (
+          <div style={{
+            color: '#B22222',
+            fontSize: '12px',
+            fontFamily: FONT,
+            padding: '8px',
+            backgroundColor: 'rgba(178, 34, 34, 0.1)',
+            border: '1px solid #B22222',
+            marginBottom: '5px'
+          }}>
+            Error de conexión. Verifica que el puente OSC esté ejecutándose.
+          </div>
         )}
 
-        {/* Desktop: Always show controls | Mobile: Show when toggled */}
-        {(!isMobile || showSettings) && (
-          <>
-            <div style={{
-              display: 'flex',
-              gap: '10px',
-              alignItems: 'center',
-              flexWrap: isMobile ? 'wrap' : 'nowrap'
-            }}>
+        {/* Connection controls */}
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+          {!isMobile && (
+            <>
               <input
                 type="text"
                 value={oscHost}
                 onChange={(e) => setOscHost(e.target.value)}
-                placeholder="Host"
-                disabled={isConnected}
+                placeholder="IP del Host"
+                disabled={isConnected || connectionStatus === 'connecting'}
                 style={{
-                  padding: '8px 12px',
-                  fontSize: isMobile ? '16px' : '14px',
-                  fontFamily: 'Georgia, serif',
-                  border: '1px solid #333',
-                  backgroundColor: '#FAF3E1',
-                  color: '#333',
-                  width: isMobile ? 'calc(50% - 5px)' : '120px',
-                  flex: isMobile ? '1' : 'none'
+                  padding: '10px 12px',
+                  fontSize: '14px',
+                  fontFamily: FONT,
+                  border: `1px solid ${COLORS.text}`,
+                  backgroundColor: isConnected ? '#eee' : COLORS.cream,
+                  color: COLORS.text,
+                  width: '120px',
+                  borderRadius: '2px'
                 }}
               />
               <input
                 type="text"
                 value={oscPort}
                 onChange={(e) => setOscPort(e.target.value)}
-                placeholder="Port"
-                disabled={isConnected}
+                placeholder="Puerto"
+                disabled={isConnected || connectionStatus === 'connecting'}
                 style={{
-                  padding: '8px 12px',
-                  fontSize: isMobile ? '16px' : '14px',
-                  fontFamily: 'Georgia, serif',
-                  border: '1px solid #333',
-                  backgroundColor: '#FAF3E1',
-                  color: '#333',
-                  width: isMobile ? 'calc(50% - 5px)' : '80px',
-                  flex: isMobile ? '1' : 'none'
+                  padding: '10px 12px',
+                  fontSize: '14px',
+                  fontFamily: FONT,
+                  border: `1px solid ${COLORS.text}`,
+                  backgroundColor: isConnected ? '#eee' : COLORS.cream,
+                  color: COLORS.text,
+                  width: '80px',
+                  borderRadius: '2px'
                 }}
               />
+            </>
+          )}
+          <button
+            onClick={isConnected ? disconnectOSC : connectOSC}
+            disabled={connectionStatus === 'connecting'}
+            style={{
+              padding: isMobile ? '12px 20px' : '10px 20px',
+              fontSize: isMobile ? '16px' : '14px',
+              backgroundColor: getConnectionButtonColor(),
+              color: COLORS.cream,
+              border: 'none',
+              cursor: connectionStatus === 'connecting' ? 'wait' : 'pointer',
+              fontFamily: FONT,
+              fontWeight: 'bold',
+              flex: isMobile ? 1 : 'none',
+              borderRadius: '2px',
+              opacity: connectionStatus === 'connecting' ? 0.7 : 1
+            }}
+          >
+            {getConnectionButtonText()}
+          </button>
+        </div>
+
+        {/* Mode selector - always visible */}
+        <div style={{ borderTop: '1px solid #ddd', paddingTop: '8px' }}>
+          <div style={{
+            fontSize: '11px',
+            fontFamily: FONT,
+            color: COLORS.textLight,
+            marginBottom: '6px'
+          }}>
+            Modo{isConnected ? ` (${totalUsers} usuario${totalUsers !== 1 ? 's' : ''})` : ''}
+          </div>
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)',
+            gap: '4px',
+            opacity: isConnected ? 1 : 0.5
+          }}>
+            {MODES.map(mode => (
               <button
-                onClick={isConnected ? disconnectOSC : connectOSC}
+                key={mode.id}
+                onClick={() => changeMode(mode.id)}
+                disabled={!isConnected}
+                title={mode.desc}
                 style={{
-                  padding: '8px 16px',
-                  fontSize: isMobile ? '16px' : '14px',
-                  backgroundColor: isConnected ? '#D22B2B' : 'transparent',
-                  color: isConnected ? '#FAF3E1' : '#333',
-                  border: '1px solid #333',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s',
-                  fontFamily: 'Georgia, serif',
-                  width: isMobile ? '100%' : 'auto'
+                  padding: isMobile ? '10px 8px' : '8px 4px',
+                  fontSize: isMobile ? '13px' : '11px',
+                  backgroundColor: currentMode === mode.id ? COLORS.red : COLORS.cream,
+                  color: currentMode === mode.id ? COLORS.cream : COLORS.text,
+                  border: `1px solid ${COLORS.text}`,
+                  cursor: isConnected ? 'pointer' : 'default',
+                  fontFamily: FONT,
+                  fontWeight: currentMode === mode.id ? 'bold' : 'normal',
+                  borderRadius: '2px'
                 }}
               >
-                {isConnected ? 'Disconnect' : 'Connect OSC'}
+                {mode.label}
               </button>
+            ))}
+          </div>
+          {!isConnected && (
+            <div style={{
+              fontSize: '10px',
+              fontFamily: FONT,
+              color: '#999',
+              marginTop: '4px',
+              fontStyle: 'italic'
+            }}>
+              Conecta para cambiar el modo
             </div>
+          )}
+        </div>
 
-            {!isMobile && (
-              <div style={{
-                fontSize: '12px',
-                fontFamily: 'Georgia, serif',
-                color: '#333'
-              }}>
-                {isConnected ? (
-                  <span style={{ color: '#D22B2B' }}>● Connected</span>
-                ) : (
-                  <span>○ Disconnected</span>
-                )}
-                <div style={{ marginTop: '5px', fontSize: '11px', opacity: 0.7 }}>
-                  X: {mousePos.x.toFixed(3)} | Y: {mousePos.y.toFixed(3)}
-                </div>
-              </div>
-            )}
-          </>
+        {/* Single mode: Request control button */}
+        {isConnected && currentMode === 'single' && !isActive && (
+          <button
+            onClick={requestActive}
+            style={{
+              padding: '12px 20px',
+              fontSize: '14px',
+              backgroundColor: '#2B8C2B',
+              color: COLORS.cream,
+              border: 'none',
+              cursor: 'pointer',
+              fontFamily: FONT,
+              fontWeight: 'bold',
+              borderRadius: '2px'
+            }}
+          >
+            Solicitar Control
+          </button>
         )}
+
+        {/* Mobile settings toggle */}
+        {isMobile && !isConnected && (
+          <button
+            onClick={() => setShowAdvanced(!showAdvanced)}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: COLORS.textLight,
+              fontSize: '12px',
+              cursor: 'pointer',
+              fontFamily: FONT,
+              textDecoration: 'underline',
+              padding: '4px 0'
+            }}
+          >
+            {showAdvanced ? 'Ocultar Ajustes' : 'Ajustes de Conexión'}
+          </button>
+        )}
+
+        {/* Mobile advanced settings */}
+        {isMobile && showAdvanced && !isConnected && (
+          <div style={{
+            display: 'flex',
+            gap: '8px',
+            paddingTop: '8px',
+            borderTop: '1px solid #ddd'
+          }}>
+            <input
+              type="text"
+              value={oscHost}
+              onChange={(e) => setOscHost(e.target.value)}
+              placeholder="IP del Host"
+              disabled={connectionStatus === 'connecting'}
+              style={{
+                padding: '10px 12px',
+                fontSize: '14px',
+                fontFamily: FONT,
+                border: `1px solid ${COLORS.text}`,
+                backgroundColor: COLORS.cream,
+                color: COLORS.text,
+                flex: 1,
+                borderRadius: '2px'
+              }}
+            />
+            <input
+              type="text"
+              value={oscPort}
+              onChange={(e) => setOscPort(e.target.value)}
+              placeholder="Puerto"
+              disabled={connectionStatus === 'connecting'}
+              style={{
+                padding: '10px 12px',
+                fontSize: '14px',
+                fontFamily: FONT,
+                border: `1px solid ${COLORS.text}`,
+                backgroundColor: COLORS.cream,
+                color: COLORS.text,
+                width: '70px',
+                borderRadius: '2px'
+              }}
+            />
+          </div>
+        )}
+
+        {/* Coordinates display */}
+        <div style={{
+          fontSize: '10px',
+          fontFamily: 'monospace',
+          color: '#888',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center'
+        }}>
+          <span>X: {mousePos.x.toFixed(3)} | Y: {mousePos.y.toFixed(3)}</span>
+          {isConnected && userId && (
+            <span>Usuario #{userId}</span>
+          )}
+        </div>
       </div>
 
       {/* Info Panel - Desktop Only */}
-      {!isMobile && (
+      {!isMobile && isConnected && (
         <div style={{
           position: 'absolute',
-          top: '80px',
+          bottom: '20px',
           right: '40px',
-          padding: '20px',
-          backgroundColor: 'rgba(250, 243, 225, 0.9)',
-          border: '1px solid #333',
-          maxWidth: '300px',
-          fontFamily: 'Georgia, serif',
+          padding: '15px',
+          backgroundColor: 'rgba(250, 243, 225, 0.95)',
+          border: `1px solid ${COLORS.text}`,
+          maxWidth: '280px',
+          fontFamily: FONT,
           fontSize: '12px',
-          color: '#333',
-          zIndex: 10
+          color: COLORS.text,
+          zIndex: 10,
+          borderRadius: '2px'
         }}>
-          <h3 style={{ margin: '0 0 10px 0', fontSize: '14px' }}>OSC Messages</h3>
-          <div style={{ lineHeight: '1.6' }}>
-            <code>/mouse/x</code> - X position (0-1)<br/>
-            <code>/mouse/y</code> - Y position (0-1)<br/>
-            <code>/mouse/xy</code> - Both X,Y<br/>
-            <code>/press</code> - Press state (0/1)
-          </div>
-          <div style={{ marginTop: '15px', fontSize: '11px', opacity: 0.7 }}>
-            Run OSC bridge server first.<br/>
-            See OSC_SETUP.md for details.
+          <h3 style={{ margin: '0 0 8px 0', fontSize: '14px' }}>
+            {currentMode === 'separate' && 'Canales Separados'}
+            {currentMode === 'single' && 'Usuario Activo Individual'}
+            {currentMode === 'blended' && 'Entrada Mezclada'}
+            {currentMode === 'zones' && 'Control por Zonas'}
+          </h3>
+          <div style={{ lineHeight: '1.5' }}>
+            {currentMode === 'separate' && (
+              <>Tus direcciones OSC:<br/>
+              <code style={{ fontSize: '10px' }}>/user/{userId}/mouse/x</code><br/>
+              <code style={{ fontSize: '10px' }}>/user/{userId}/mouse/y</code><br/>
+              <code style={{ fontSize: '10px' }}>/user/{userId}/press</code></>
+            )}
+            {currentMode === 'single' && (
+              <>Solo se envían los datos del usuario activo.<br/>
+              {isActive ? <strong>Estás activo actualmente.</strong> : 'Estás esperando el control.'}</>
+            )}
+            {currentMode === 'blended' && (
+              <>Las posiciones de los {totalUsers} usuarios se promedian.<br/>
+              ¡Muévanse juntos para un control suave!</>
+            )}
+            {currentMode === 'zones' && (
+              <>Controlas la <strong>Zona {userZone}</strong>.<br/>
+              OSC: <code style={{ fontSize: '10px' }}>/zone/{userZone}/...</code></>
+            )}
           </div>
         </div>
       )}
@@ -464,22 +812,14 @@ const Interact = () => {
       {/* Interactive Canvas */}
       <canvas
         ref={canvasRef}
-        onMouseMove={handleInteraction}
-        onMouseDown={handlePressStart}
-        onMouseUp={handlePressEnd}
-        onMouseLeave={handlePressEnd}
-        onTouchMove={(e) => {
-          e.preventDefault();
-          handleInteraction(e.touches[0]);
-        }}
-        onTouchStart={(e) => {
-          e.preventDefault();
-          handlePressStart(e.touches[0]);
-        }}
-        onTouchEnd={(e) => {
-          e.preventDefault();
-          handlePressEnd();
-        }}
+        onMouseMove={onMouseMove}
+        onMouseDown={onMouseDown}
+        onMouseUp={onMouseUp}
+        onMouseLeave={onMouseUp}
+        onTouchMove={onTouchMove}
+        onTouchStart={onTouchStart}
+        onTouchEnd={onTouchEnd}
+        onTouchCancel={onTouchEnd}
         style={{
           display: 'block',
           cursor: 'none',

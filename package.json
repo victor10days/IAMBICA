@@ -4,18 +4,27 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "node server/server.js & vite",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "osc-bridge": "node osc-bridge.js"
+    "osc-bridge": "node osc-bridge.js",
+    "api": "node server/server.js",
+    "copy-archives": "node server/copy-archives.js",
+    "seed": "node server/seed.js"
   },
   "dependencies": {
+    "@rolldown/binding-darwin-arm64": "^1.0.0-rc.4",
+    "better-sqlite3": "^12.6.2",
+    "cors": "^2.8.6",
+    "express": "^5.2.1",
+    "multer": "^2.0.2",
     "osc": "^2.4.5",
     "p5": "^2.2.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "react-router-dom": "^7.12.0"
+    "react-router-dom": "^7.12.0",
+    "ws": "^8.19.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
