@@ -18,6 +18,7 @@
 
 import { WebSocketServer } from 'ws';
 import osc from 'osc';
+import dgram from 'dgram';
 
 // Parse command line arguments
 const args = process.argv.slice(2);
@@ -39,34 +40,26 @@ let nextUserId = 1;
 let activeUserId = null; // For 'single' mode
 const userPositions = new Map(); // userId -> { x, y }
 
-// Create OSC UDP Port
-const oscPort = new osc.UDPPort({
-  localAddress: '0.0.0.0',
-  localPort: 57121,
-  remoteAddress: OSC_HOST,
-  remotePort: OSC_PORT,
-  metadata: true
+// Create raw UDP socket for sending OSC
+const udpSocket = dgram.createSocket('udp4');
+
+udpSocket.on('error', (error) => {
+  console.error('UDP Error:', error);
 });
 
-oscPort.on('ready', () => {
-  console.log(`OSC sending to ${OSC_HOST}:${OSC_PORT}`);
-});
+console.log(`OSC sending to ${OSC_HOST}:${OSC_PORT}`);
 
-oscPort.on('error', (error) => {
-  console.error('OSC Error:', error);
-});
-
-oscPort.open();
-
-// Helper: Send OSC message
-function sendOSCMessage(address, args) {
-  oscPort.send({
+// Helper: Send OSC message using raw UDP + osc encoding
+function sendOSCMessage(address, oscArgs) {
+  const msg = osc.writeMessage({
     address: address,
-    args: args.map(arg => ({
+    args: oscArgs.map(arg => ({
       type: typeof arg === 'number' ? 'f' : 's',
       value: arg
     }))
   });
+  const buffer = Buffer.from(msg);
+  udpSocket.send(buffer, 0, buffer.length, OSC_PORT, OSC_HOST);
 }
 
 // Helper: Broadcast to all clients
@@ -341,7 +334,7 @@ wss.on('error', (error) => {
 // Handle shutdown gracefully
 process.on('SIGINT', () => {
   console.log('\n\nShutting down OSC Bridge...');
-  oscPort.close();
+  udpSocket.close();
   wss.close();
   process.exit(0);
 });
