@@ -194,15 +194,23 @@ const modeHandlers = {
   }
 };
 
-// Create WebSocket Server
-const wss = new WebSocketServer({ port: WS_PORT });
+// Create WebSocket Server (host 0.0.0.0 to accept connections from any device on the network)
+const wss = new WebSocketServer({ host: '0.0.0.0', port: WS_PORT });
+
+// Get local network IP for display
+import { networkInterfaces } from 'os';
+const localIP = Object.values(networkInterfaces())
+  .flat()
+  .find(i => i.family === 'IPv4' && !i.internal)?.address || 'unknown';
 
 console.log(`
 ╔════════════════════════════════════════════════════════════╗
 ║              OSC Bridge Server - Multi-User                ║
 ╚════════════════════════════════════════════════════════════╝
 
-WebSocket Server: ws://localhost:${WS_PORT}
+WebSocket Server: ws://0.0.0.0:${WS_PORT}
+  → From this machine:  ws://localhost:${WS_PORT}
+  → From other devices: ws://${localIP}:${WS_PORT}
 OSC Output:       ${OSC_HOST}:${OSC_PORT}
 Initial Mode:     ${currentMode}
 

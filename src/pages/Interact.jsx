@@ -34,7 +34,6 @@ const Interact = () => {
   const [oscPort, setOscPort] = useState('8000');
   const [mousePos, setMousePos] = useState({ x: 0.5, y: 0.5 });
   const [isPressing, setIsPressing] = useState(false);
-  const [showAdvanced, setShowAdvanced] = useState(false);
 
   // Multi-user state
   const [userId, setUserId] = useState(null);
@@ -529,11 +528,11 @@ const Interact = () => {
         zIndex: 10,
         display: 'flex',
         flexDirection: 'column',
-        gap: '8px',
+        gap: '6px',
         backgroundColor: 'rgba(250, 243, 225, 0.98)',
-        padding: isMobile ? '10px' : '15px',
+        padding: isMobile ? '8px' : '15px',
         border: `1px solid ${COLORS.text}`,
-        maxWidth: isMobile ? 'none' : '400px',
+        maxWidth: isMobile ? '260px' : '400px',
         borderRadius: '2px',
         touchAction: 'manipulation'
       }}>
@@ -553,58 +552,54 @@ const Interact = () => {
         )}
 
         {/* Connection controls */}
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
-          {!isMobile && (
-            <>
-              <input
-                type="text"
-                value={oscHost}
-                onChange={(e) => setOscHost(e.target.value)}
-                placeholder="IP del Host"
-                disabled={isConnected || connectionStatus === 'connecting'}
-                style={{
-                  padding: '10px 12px',
-                  fontSize: '14px',
-                  fontFamily: FONT,
-                  border: `1px solid ${COLORS.text}`,
-                  backgroundColor: isConnected ? '#eee' : COLORS.cream,
-                  color: COLORS.text,
-                  width: '120px',
-                  borderRadius: '2px'
-                }}
-              />
-              <input
-                type="text"
-                value={oscPort}
-                onChange={(e) => setOscPort(e.target.value)}
-                placeholder="Puerto"
-                disabled={isConnected || connectionStatus === 'connecting'}
-                style={{
-                  padding: '10px 12px',
-                  fontSize: '14px',
-                  fontFamily: FONT,
-                  border: `1px solid ${COLORS.text}`,
-                  backgroundColor: isConnected ? '#eee' : COLORS.cream,
-                  color: COLORS.text,
-                  width: '80px',
-                  borderRadius: '2px'
-                }}
-              />
-            </>
-          )}
+        <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
+          <input
+            type="text"
+            value={oscHost}
+            onChange={(e) => setOscHost(e.target.value)}
+            placeholder="IP del Host"
+            disabled={isConnected || connectionStatus === 'connecting'}
+            style={{
+              padding: isMobile ? '8px 6px' : '10px 12px',
+              fontSize: isMobile ? '12px' : '14px',
+              fontFamily: FONT,
+              border: `1px solid ${COLORS.text}`,
+              backgroundColor: isConnected ? '#eee' : COLORS.cream,
+              color: COLORS.text,
+              width: isMobile ? '90px' : '120px',
+              borderRadius: '2px'
+            }}
+          />
+          <input
+            type="text"
+            value={oscPort}
+            onChange={(e) => setOscPort(e.target.value)}
+            placeholder="Puerto"
+            disabled={isConnected || connectionStatus === 'connecting'}
+            style={{
+              padding: isMobile ? '8px 6px' : '10px 12px',
+              fontSize: isMobile ? '12px' : '14px',
+              fontFamily: FONT,
+              border: `1px solid ${COLORS.text}`,
+              backgroundColor: isConnected ? '#eee' : COLORS.cream,
+              color: COLORS.text,
+              width: isMobile ? '55px' : '80px',
+              borderRadius: '2px'
+            }}
+          />
           <button
             onClick={isConnected ? disconnectOSC : connectOSC}
             disabled={connectionStatus === 'connecting'}
             style={{
-              padding: isMobile ? '12px 20px' : '10px 20px',
-              fontSize: isMobile ? '16px' : '14px',
+              padding: isMobile ? '8px 12px' : '10px 20px',
+              fontSize: isMobile ? '13px' : '14px',
               backgroundColor: getConnectionButtonColor(),
               color: COLORS.cream,
               border: 'none',
               cursor: connectionStatus === 'connecting' ? 'wait' : 'pointer',
               fontFamily: FONT,
               fontWeight: 'bold',
-              flex: isMobile ? 1 : 'none',
+              flex: 1,
               borderRadius: '2px',
               opacity: connectionStatus === 'connecting' ? 0.7 : 1
             }}
@@ -614,19 +609,19 @@ const Interact = () => {
         </div>
 
         {/* Mode selector - always visible */}
-        <div style={{ borderTop: '1px solid #ddd', paddingTop: '8px' }}>
+        <div style={{ borderTop: '1px solid #ddd', paddingTop: '6px' }}>
           <div style={{
-            fontSize: '11px',
+            fontSize: '10px',
             fontFamily: FONT,
             color: COLORS.textLight,
-            marginBottom: '6px'
+            marginBottom: '4px'
           }}>
             Modo{isConnected ? ` (${totalUsers} usuario${totalUsers !== 1 ? 's' : ''})` : ''}
           </div>
           <div style={{
             display: 'grid',
-            gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)',
-            gap: '4px',
+            gridTemplateColumns: 'repeat(4, 1fr)',
+            gap: '3px',
             opacity: isConnected ? 1 : 0.5
           }}>
             {MODES.map(mode => (
@@ -636,8 +631,8 @@ const Interact = () => {
                 disabled={!isConnected}
                 title={mode.desc}
                 style={{
-                  padding: isMobile ? '10px 8px' : '8px 4px',
-                  fontSize: isMobile ? '13px' : '11px',
+                  padding: isMobile ? '6px 2px' : '8px 4px',
+                  fontSize: isMobile ? '10px' : '11px',
                   backgroundColor: currentMode === mode.id ? COLORS.red : COLORS.cream,
                   color: currentMode === mode.id ? COLORS.cream : COLORS.text,
                   border: `1px solid ${COLORS.text}`,
@@ -653,10 +648,10 @@ const Interact = () => {
           </div>
           {!isConnected && (
             <div style={{
-              fontSize: '10px',
+              fontSize: '9px',
               fontFamily: FONT,
               color: '#999',
-              marginTop: '4px',
+              marginTop: '3px',
               fontStyle: 'italic'
             }}>
               Conecta para cambiar el modo
@@ -684,69 +679,6 @@ const Interact = () => {
           </button>
         )}
 
-        {/* Mobile settings toggle */}
-        {isMobile && !isConnected && (
-          <button
-            onClick={() => setShowAdvanced(!showAdvanced)}
-            style={{
-              background: 'none',
-              border: 'none',
-              color: COLORS.textLight,
-              fontSize: '12px',
-              cursor: 'pointer',
-              fontFamily: FONT,
-              textDecoration: 'underline',
-              padding: '4px 0'
-            }}
-          >
-            {showAdvanced ? 'Ocultar Ajustes' : 'Ajustes de Conexión'}
-          </button>
-        )}
-
-        {/* Mobile advanced settings */}
-        {isMobile && showAdvanced && !isConnected && (
-          <div style={{
-            display: 'flex',
-            gap: '8px',
-            paddingTop: '8px',
-            borderTop: '1px solid #ddd'
-          }}>
-            <input
-              type="text"
-              value={oscHost}
-              onChange={(e) => setOscHost(e.target.value)}
-              placeholder="IP del Host"
-              disabled={connectionStatus === 'connecting'}
-              style={{
-                padding: '10px 12px',
-                fontSize: '14px',
-                fontFamily: FONT,
-                border: `1px solid ${COLORS.text}`,
-                backgroundColor: COLORS.cream,
-                color: COLORS.text,
-                flex: 1,
-                borderRadius: '2px'
-              }}
-            />
-            <input
-              type="text"
-              value={oscPort}
-              onChange={(e) => setOscPort(e.target.value)}
-              placeholder="Puerto"
-              disabled={connectionStatus === 'connecting'}
-              style={{
-                padding: '10px 12px',
-                fontSize: '14px',
-                fontFamily: FONT,
-                border: `1px solid ${COLORS.text}`,
-                backgroundColor: COLORS.cream,
-                color: COLORS.text,
-                width: '70px',
-                borderRadius: '2px'
-              }}
-            />
-          </div>
-        )}
 
         {/* Coordinates display */}
         <div style={{
