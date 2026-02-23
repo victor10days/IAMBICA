@@ -35,9 +35,9 @@ const Admin = () => {
   const handleCreateEvent = async (e) => {
     e.preventDefault();
     const body = { ...eventForm };
-    if (body.edition) body.edition = Number(body.edition);
-    if (body.year) body.year = Number(body.year);
-    Object.keys(body).forEach(k => { if (!body[k]) delete body[k]; });
+    if (body.edition !== '') body.edition = Number(body.edition);
+    if (body.year !== '') body.year = Number(body.year);
+    Object.keys(body).forEach(k => { if (body[k] === '') delete body[k]; });
 
     const res = await fetch(`${API_BASE}/events`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
@@ -55,7 +55,7 @@ const Admin = () => {
   const handleCreateArtist = async (e) => {
     e.preventDefault();
     const body = { ...artistForm };
-    Object.keys(body).forEach(k => { if (!body[k]) delete body[k]; });
+    Object.keys(body).forEach(k => { if (body[k] === '') delete body[k]; });
 
     const res = await fetch(`${API_BASE}/artists`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
@@ -76,7 +76,7 @@ const Admin = () => {
 
     const formData = new FormData();
     formData.append('image', uploadFile);
-    Object.entries(uploadForm).forEach(([k, v]) => { if (v) formData.append(k, v); });
+    Object.entries(uploadForm).forEach(([k, v]) => { if (v !== '') formData.append(k, v); });
 
     const res = await fetch(`${API_BASE}/media/upload`, { method: 'POST', body: formData });
     if (res.ok) {
@@ -89,15 +89,21 @@ const Admin = () => {
   };
 
   const handleDeleteEvent = async (slug) => {
-    if (!confirm(`¿Eliminar evento "${slug}"?`)) return;
-    const res = await fetch(`${API_BASE}/events/${slug}`, { method: 'DELETE' });
-    if (res.ok) { showMessage('Evento eliminado'); fetchData(); }
+    if (!window.confirm(`¿Eliminar evento "${slug}"?`)) return;
+    try {
+      const res = await fetch(`${API_BASE}/events/${slug}`, { method: 'DELETE' });
+      if (res.ok) { showMessage('Evento eliminado'); fetchData(); }
+      else { const err = await res.json(); showMessage(`Error: ${err.error}`); }
+    } catch { showMessage('Error de conexión'); }
   };
 
   const handleDeleteArtist = async (slug) => {
-    if (!confirm(`¿Eliminar artista "${slug}"?`)) return;
-    const res = await fetch(`${API_BASE}/artists/${slug}`, { method: 'DELETE' });
-    if (res.ok) { showMessage('Artista eliminado'); fetchData(); }
+    if (!window.confirm(`¿Eliminar artista "${slug}"?`)) return;
+    try {
+      const res = await fetch(`${API_BASE}/artists/${slug}`, { method: 'DELETE' });
+      if (res.ok) { showMessage('Artista eliminado'); fetchData(); }
+      else { const err = await res.json(); showMessage(`Error: ${err.error}`); }
+    } catch { showMessage('Error de conexión'); }
   };
 
   const inputStyle = {
