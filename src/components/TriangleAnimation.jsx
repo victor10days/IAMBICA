@@ -1,35 +1,45 @@
-import React, { useRef, useEffect, useReducer } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import { COLORS } from '../styles/theme';
 
 const COLORS_ARRAY = [COLORS.tan, COLORS.dark, COLORS.tan, COLORS.dark, COLORS.tan, COLORS.dark, COLORS.tan];
 const FIB = [1, 1, 2, 3, 5, 8, 13];
+
+function createSegments(angle, scale) {
+  const segmentLength = scale * 3;
+  return FIB.map((num, index) => ({
+    x: Math.cos(angle) * segmentLength * index,
+    y: Math.sin(angle) * segmentLength * index,
+    vx: 0,
+    vy: 0,
+    size: num * scale,
+    rotation: 0,
+  }));
+}
+
+function snapshotSegments(segments) {
+  return segments.map(s => ({ x: s.x, y: s.y, size: s.size, rotation: s.rotation }));
+}
 
 const Triangle = React.memo(({ x, y, size, mouseX, mouseY, rotation }) => {
   const angle = Math.atan2(mouseY - y, mouseX - x);
   const scale = size * 0.066;
 
   const ropeSegments = useRef(null);
-  const [, forceUpdate] = useReducer(n => n + 1, 0);
   const animationFrameRef = useRef(null);
   const frameCount = useRef(0);
-
-  if (!ropeSegments.current) {
-    const segmentLength = scale * 3;
-    ropeSegments.current = FIB.map((num, index) => ({
-      x: Math.cos(angle) * segmentLength * index,
-      y: Math.sin(angle) * segmentLength * index,
-      vx: 0,
-      vy: 0,
-      size: num * scale,
-      rotation: 0,
-    }));
-  }
+  const [renderSegments, setRenderSegments] = useState(() =>
+    snapshotSegments(createSegments(angle, scale))
+  );
 
   useEffect(() => {
     const segmentLength = scale * 3;
     const gravity = 0.3;
     const damping = 0.98;
     const constraintIterations = 3;
+
+    if (!ropeSegments.current) {
+      ropeSegments.current = createSegments(angle, scale);
+    }
 
     const updateRope = () => {
       const segments = ropeSegments.current;
@@ -67,16 +77,16 @@ const Triangle = React.memo(({ x, y, size, mouseX, mouseY, rotation }) => {
 
           if (index > 0) {
             const prev = segments[index - 1];
-            segment.rotation += Math.atan2(segment.y - prev.y, segment.x - prev.x) * 2;
+            segment.rotation = (segment.rotation + Math.atan2(segment.y - prev.y, segment.x - prev.x) * 2) % 360;
           } else {
-            segment.rotation += angle * 2;
+            segment.rotation = (segment.rotation + angle * 2) % 360;
           }
         }
       }
 
       frameCount.current++;
       if (frameCount.current % 3 === 0) {
-        forceUpdate();
+        setRenderSegments(snapshotSegments(segments));
       }
       animationFrameRef.current = requestAnimationFrame(updateRope);
     };
@@ -96,7 +106,7 @@ const Triangle = React.memo(({ x, y, size, mouseX, mouseY, rotation }) => {
   return (
     <g transform={`translate(${x}, ${y}) rotate(${rotation})`}>
       <polygon points={trianglePoints} fill={COLORS.red} />
-      {ropeSegments.current && ropeSegments.current.map((segment, index) => (
+      {renderSegments.map((segment, index) => (
         <g key={index} transform={`translate(${segment.x}, ${segment.y})`}>
           <rect
             x={-segment.size / 2}

@@ -248,8 +248,7 @@ wss.on('connection', (ws) => {
 
         // Reassign zones if switching to zone mode
         if (currentMode === 'zones') {
-          let zoneId = 1;
-          for (const [clientWs, client] of clients) {
+          for (const [, client] of clients) {
             client.zone = assignZone(client.userId);
           }
         }

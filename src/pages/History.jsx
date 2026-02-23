@@ -11,8 +11,8 @@ import { COLORS, FONT, ARCHIVES_BASE, API_BASE } from '../styles/theme';
 const History = () => {
   const { isMobile } = useMobile();
 
-  const { data: timeline, loading: timelineLoading } = useApi('/timeline');
-  const { data: artists, loading: artistsLoading } = useApi('/artists');
+  const { data: timeline, loading: timelineLoading, error: timelineError } = useApi('/timeline');
+  const { data: artists, loading: artistsLoading, error: artistsError } = useApi('/artists');
 
   // Detail views
   const [selectedEvent, setSelectedEvent] = useState(null);
@@ -26,20 +26,24 @@ const History = () => {
 
   // Fetch event detail when selected
   useEffect(() => {
-    if (!selectedEvent) { setEventDetail(null); return; }
+    if (!selectedEvent) return;
+    let cancelled = false;
     fetch(`${API_BASE}/events/${selectedEvent.slug}`)
       .then(r => r.json())
-      .then(setEventDetail)
-      .catch(() => setEventDetail(null));
+      .then(data => { if (!cancelled) setEventDetail(data); })
+      .catch(() => { if (!cancelled) setEventDetail(null); });
+    return () => { cancelled = true; setEventDetail(null); };
   }, [selectedEvent]);
 
   // Fetch artist detail when selected
   useEffect(() => {
-    if (!selectedArtist) { setArtistDetail(null); return; }
+    if (!selectedArtist) return;
+    let cancelled = false;
     fetch(`${API_BASE}/artists/${selectedArtist.slug}`)
       .then(r => r.json())
-      .then(setArtistDetail)
-      .catch(() => setArtistDetail(null));
+      .then(data => { if (!cancelled) setArtistDetail(data); })
+      .catch(() => { if (!cancelled) setArtistDetail(null); });
+    return () => { cancelled = true; setArtistDetail(null); };
   }, [selectedArtist]);
 
   const handleEventClick = (event) => {
@@ -128,6 +132,10 @@ const History = () => {
           <div style={{ textAlign: 'center', color: COLORS.textLight, padding: '40px', fontFamily: FONT }}>
             Cargando eventos...
           </div>
+        ) : timelineError ? (
+          <div style={{ textAlign: 'center', color: COLORS.red, padding: '40px', fontFamily: FONT }}>
+            Error cargando eventos. Verifica que el servidor esté ejecutándose.
+          </div>
         ) : (
           <Timeline
             timeline={timeline}
@@ -155,6 +163,10 @@ const History = () => {
         {artistsLoading ? (
           <div style={{ textAlign: 'center', color: COLORS.textLight, padding: '40px', fontFamily: FONT }}>
             Cargando artistas...
+          </div>
+        ) : artistsError ? (
+          <div style={{ textAlign: 'center', color: COLORS.red, padding: '40px', fontFamily: FONT }}>
+            Error cargando artistas. Verifica que el servidor esté ejecutándose.
           </div>
         ) : (
           <div style={{

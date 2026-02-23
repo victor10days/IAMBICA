@@ -10,6 +10,53 @@ const MODES = [
   { id: 'zones', label: 'Zonas', desc: 'Lienzo dividido en regiones' }
 ];
 
+const StatusBadge = ({ isConnected, currentMode, userId, isActive, totalUsers, userZone, isMobile }) => {
+  if (!isConnected) return null;
+
+  let statusText = '';
+  let statusColor = COLORS.red;
+
+  if (currentMode === 'separate') {
+    statusText = `Usuario #${userId}`;
+  } else if (currentMode === 'single') {
+    statusText = isActive ? 'Activo' : 'Esperando';
+    statusColor = isActive ? '#2B8C2B' : COLORS.textLight;
+  } else if (currentMode === 'blended') {
+    statusText = `Mezclando (${totalUsers})`;
+  } else if (currentMode === 'zones') {
+    statusText = `Zona ${userZone}`;
+  }
+
+  return (
+    <div style={{
+      position: 'absolute',
+      bottom: isMobile ? 'max(15px, env(safe-area-inset-bottom))' : 'auto',
+      top: isMobile ? 'auto' : '20px',
+      right: isMobile ? '10px' : '40px',
+      backgroundColor: statusColor,
+      color: COLORS.cream,
+      padding: isMobile ? '6px 12px' : '8px 16px',
+      fontFamily: FONT,
+      fontSize: isMobile ? '12px' : '16px',
+      fontWeight: 'bold',
+      zIndex: 20,
+      display: 'flex',
+      alignItems: 'center',
+      gap: '8px',
+      borderRadius: '2px'
+    }}>
+      <span style={{
+        width: '8px',
+        height: '8px',
+        borderRadius: '50%',
+        backgroundColor: COLORS.cream,
+        animation: 'pulse 2s infinite'
+      }} />
+      {statusText}
+    </div>
+  );
+};
+
 const Interact = () => {
   const canvasRef = useRef(null);
   const wsRef = useRef(null);
@@ -33,7 +80,6 @@ const Interact = () => {
   });
   const [oscPort, setOscPort] = useState('8000');
   const [mousePos, setMousePos] = useState({ x: 0.5, y: 0.5 });
-  const [isPressing, setIsPressing] = useState(false);
 
   // Multi-user state
   const [userId, setUserId] = useState(null);
@@ -172,14 +218,12 @@ const Interact = () => {
 
   const handlePressStart = useCallback((clientX, clientY) => {
     isPressingRef.current = true;
-    setIsPressing(true);
     sendOSC('/press', [1]);
     handleInteraction(clientX, clientY);
   }, [sendOSC, handleInteraction]);
 
   const handlePressEnd = useCallback(() => {
     isPressingRef.current = false;
-    setIsPressing(false);
     sendOSC('/press', [0]);
   }, [sendOSC]);
 
@@ -365,54 +409,6 @@ const Interact = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Status badge component
-  const StatusBadge = () => {
-    if (!isConnected) return null;
-
-    let statusText = '';
-    let statusColor = COLORS.red;
-
-    if (currentMode === 'separate') {
-      statusText = `Usuario #${userId}`;
-    } else if (currentMode === 'single') {
-      statusText = isActive ? 'Activo' : 'Esperando';
-      statusColor = isActive ? '#2B8C2B' : COLORS.textLight;
-    } else if (currentMode === 'blended') {
-      statusText = `Mezclando (${totalUsers})`;
-    } else if (currentMode === 'zones') {
-      statusText = `Zona ${userZone}`;
-    }
-
-    return (
-      <div style={{
-        position: 'absolute',
-        bottom: isMobile ? 'max(15px, env(safe-area-inset-bottom))' : 'auto',
-        top: isMobile ? 'auto' : '20px',
-        right: isMobile ? '10px' : '40px',
-        backgroundColor: statusColor,
-        color: COLORS.cream,
-        padding: isMobile ? '6px 12px' : '8px 16px',
-        fontFamily: FONT,
-        fontSize: isMobile ? '12px' : '16px',
-        fontWeight: 'bold',
-        zIndex: 20,
-        display: 'flex',
-        alignItems: 'center',
-        gap: '8px',
-        borderRadius: '2px'
-      }}>
-        <span style={{
-          width: '8px',
-          height: '8px',
-          borderRadius: '50%',
-          backgroundColor: COLORS.cream,
-          animation: 'pulse 2s infinite'
-        }} />
-        {statusText}
-      </div>
-    );
-  };
-
   // Connection status indicator
   const getConnectionButtonText = () => {
     switch (connectionStatus) {
@@ -458,7 +454,15 @@ const Interact = () => {
       `}</style>
 
       {/* Status Badge */}
-      <StatusBadge />
+      <StatusBadge
+        isConnected={isConnected}
+        currentMode={currentMode}
+        userId={userId}
+        isActive={isActive}
+        totalUsers={totalUsers}
+        userZone={userZone}
+        isMobile={isMobile}
+      />
 
       {/* Header - Hidden on mobile */}
       {!isMobile && (

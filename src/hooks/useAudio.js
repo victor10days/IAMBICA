@@ -4,7 +4,6 @@ export const useAudio = () => {
   const audioContextRef = useRef(null);
   const [isAudioEnabled, setIsAudioEnabled] = useState(false);
   const masterGainRef = useRef(null);
-  const oscillatorsRef = useRef([]);
   const ambienceOscillatorsRef = useRef([]);
 
   // Initialize Audio Context
@@ -36,7 +35,7 @@ export const useAudio = () => {
         try {
           osc.stop();
           lfo.stop();
-        } catch (e) {
+        } catch {
           // Already stopped
         }
       });
@@ -251,7 +250,7 @@ export const useAudio = () => {
         try {
           osc.stop();
           lfo.stop();
-        } catch (e) {
+        } catch {
           // Already stopped
         }
       });

@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState } from 'react';
+import { useRef, useEffect, useState, useCallback } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAudio } from '../hooks/useAudio';
 import { useMobile } from '../hooks/useMobile';
@@ -27,6 +27,7 @@ const SinglePageHome = () => {
   const animationRef = useRef(null);
   const lastMouseMoveTimeRef = useRef(0);
   const ambienceStartedRef = useRef(false);
+  const mousePosRef = useRef(mousePos);
 
   const {
     isAudioEnabled,
@@ -37,22 +38,32 @@ const SinglePageHome = () => {
     playMouseSound,
   } = useAudio();
 
-  const handleMouseMove = (event) => {
+  // Keep refs in sync to avoid stale closures in animation loop
+  const isAudioEnabledRef = useRef(isAudioEnabled);
+  useEffect(() => { isAudioEnabledRef.current = isAudioEnabled; }, [isAudioEnabled]);
+  const playCollisionSoundRef = useRef(playCollisionSound);
+  useEffect(() => { playCollisionSoundRef.current = playCollisionSound; }, [playCollisionSound]);
+  const updateAmbienceRef = useRef(updateAmbience);
+  useEffect(() => { updateAmbienceRef.current = updateAmbience; }, [updateAmbience]);
+
+  const handleMouseMove = useCallback((event) => {
     if (svgRef.current) {
       const rect = svgRef.current.getBoundingClientRect();
       const newX = event.clientX - rect.left;
       const newY = event.clientY - rect.top;
+      const prevPos = mousePosRef.current;
 
       setMousePos({ x: newX, y: newY });
+      mousePosRef.current = { x: newX, y: newY };
 
       const now = Date.now();
-      if (isAudioEnabled && now - lastMouseMoveTimeRef.current > 100) {
-        const isMoving = Math.abs(newX - mousePos.x) > 5 || Math.abs(newY - mousePos.y) > 5;
-        playMouseSound(newX, newY, width, height, isMoving);
+      if (isAudioEnabledRef.current && now - lastMouseMoveTimeRef.current > 100) {
+        const isMoving = Math.abs(newX - prevPos.x) > 5 || Math.abs(newY - prevPos.y) > 5;
+        playMouseSound(newX, newY, window.innerWidth, window.innerHeight, isMoving);
         lastMouseMoveTimeRef.current = now;
       }
     }
-  };
+  }, [playMouseSound]);
 
   useEffect(() => {
     if (isAudioEnabled && !ambienceStartedRef.current) {
@@ -67,6 +78,7 @@ const SinglePageHome = () => {
 
     const animate = () => {
       setEyePositions(prevEyes => {
+        const collisions = [];
         const newEyes = prevEyes.map(eye => {
           let newX = eye.x + eye.vx;
           let newY = eye.y + eye.vy;
@@ -93,7 +105,7 @@ const SinglePageHome = () => {
 
           if (collided) {
             const velocity = Math.sqrt(newVx * newVx + newVy * newVy);
-            playCollisionSound(velocity, eye.size);
+            collisions.push({ velocity, size: eye.size });
           }
 
           const newRotation = (eye.rotation + newAngularVelocity) % 360;
@@ -109,8 +121,16 @@ const SinglePageHome = () => {
           };
         });
 
-        if (isAudioEnabled) {
-          updateAmbience(newEyes, widthRef, heightRef);
+        // Schedule side effects outside the state updater via microtask
+        if (collisions.length > 0 || isAudioEnabledRef.current) {
+          queueMicrotask(() => {
+            for (const { velocity, size } of collisions) {
+              playCollisionSoundRef.current(velocity, size);
+            }
+            if (isAudioEnabledRef.current) {
+              updateAmbienceRef.current(newEyes, widthRef, heightRef);
+            }
+          });
         }
 
         return newEyes;
@@ -126,7 +146,7 @@ const SinglePageHome = () => {
         cancelAnimationFrame(animationRef.current);
       }
     };
-  }, [width, height, playCollisionSound, updateAmbience, isAudioEnabled]);
+  }, [width, height]);
 
   const location = useLocation();
 
@@ -154,14 +174,13 @@ const SinglePageHome = () => {
       width: '100%',
       overflow: 'auto',
       overflowX: 'hidden',
-      scrollSnapType: 'y mandatory'
+      scrollSnapType: 'y proximity'
     }}>
       {/* Sticky Header */}
       <Header />
 
       {/* Welcome Section with Cube */}
       <section id="welcome" style={{
-        minHeight: '100vh',
         minHeight: '100dvh',
         width: '100%',
         position: 'relative',
@@ -223,14 +242,14 @@ const SinglePageHome = () => {
               fontFamily: FONT
             }}
             onMouseEnter={(e) => {
-              e.target.style.backgroundColor = COLORS.red;
-              e.target.style.borderColor = COLORS.red;
-              e.target.style.color = COLORS.cream;
+              e.currentTarget.style.backgroundColor = COLORS.red;
+              e.currentTarget.style.borderColor = COLORS.red;
+              e.currentTarget.style.color = COLORS.cream;
             }}
             onMouseLeave={(e) => {
-              e.target.style.backgroundColor = 'transparent';
-              e.target.style.borderColor = COLORS.text;
-              e.target.style.color = COLORS.text;
+              e.currentTarget.style.backgroundColor = 'transparent';
+              e.currentTarget.style.borderColor = COLORS.text;
+              e.currentTarget.style.color = COLORS.text;
             }}
           >
             Descubre Más
@@ -240,7 +259,6 @@ const SinglePageHome = () => {
 
       {/* About Section with Cellular Automaton */}
       <section id="about" style={{
-        minHeight: '100vh',
         minHeight: '100dvh',
         width: '100%',
         position: 'relative',
@@ -302,7 +320,6 @@ const SinglePageHome = () => {
 
       {/* Mission Section with Cube */}
       <section id="mission" style={{
-        minHeight: '100vh',
         minHeight: '100dvh',
         width: '100%',
         display: 'flex',
@@ -336,7 +353,7 @@ Crear un espacio accesible, inclusivo y dinámico donde artistas y comunidades p
 
       {/* Philosophy Section */}
       <section id="philosophy" style={{
-        minHeight: '100vh',
+        minHeight: '100dvh',
         width: '100%',
         position: 'relative',
         overflow: 'hidden',
@@ -383,9 +400,8 @@ Crear un espacio accesible, inclusivo y dinámico donde artistas y comunidades p
 
       {/* Interact Section with Triangle Animation */}
       <section id="interact" style={{
-        minHeight: '100vh',
         minHeight: '100dvh',
-        height: '100vh',
+        height: '100dvh',
         width: '100%',
         position: 'relative',
         backgroundColor: COLORS.cream,
@@ -479,10 +495,10 @@ Crear un espacio accesible, inclusivo y dinámico donde artistas y comunidades p
                 fontFamily: FONT
               }}
               onMouseEnter={(e) => {
-                e.target.style.backgroundColor = COLORS.dark;
+                e.currentTarget.style.backgroundColor = COLORS.dark;
               }}
               onMouseLeave={(e) => {
-                e.target.style.backgroundColor = COLORS.red;
+                e.currentTarget.style.backgroundColor = COLORS.red;
               }}
             >
               Lanzar Interfaz Interactiva

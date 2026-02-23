@@ -1,17 +1,27 @@
-import { useState, useEffect } from 'react';
+import { useReducer, useEffect } from 'react';
 import { API_BASE } from '../styles/theme';
 
+function reducer(state, action) {
+  switch (action.type) {
+    case 'loading':
+      return { data: state.data, loading: true, error: null };
+    case 'success':
+      return { data: action.data, loading: false, error: null };
+    case 'error':
+      return { data: null, loading: false, error: action.error };
+    default:
+      return state;
+  }
+}
+
 export function useApi(endpoint) {
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [state, dispatch] = useReducer(reducer, { data: null, loading: true, error: null });
 
   useEffect(() => {
     if (!endpoint) return;
 
     let cancelled = false;
-    setLoading(true);
-    setError(null);
+    dispatch({ type: 'loading' });
 
     fetch(`${API_BASE}${endpoint}`)
       .then(res => {
@@ -19,17 +29,14 @@ export function useApi(endpoint) {
         return res.json();
       })
       .then(json => {
-        if (!cancelled) setData(json);
+        if (!cancelled) dispatch({ type: 'success', data: json });
       })
       .catch(err => {
-        if (!cancelled) setError(err.message);
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) dispatch({ type: 'error', error: err.message });
       });
 
     return () => { cancelled = true; };
   }, [endpoint]);
 
-  return { data, loading, error };
+  return state;
 }

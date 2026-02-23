@@ -1,9 +1,6 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import p5 from 'p5';
 import { COLORS } from '../styles/theme';
-
-// Module-level guard to prevent duplicate p5 cube instances
-let activeCubeInstance = null;
 
 const getCubeSize = () => {
   const minDim = Math.min(window.innerWidth, window.innerHeight);
@@ -24,24 +21,20 @@ const FACE_COLORS = {
 
 const InteractiveCube = () => {
   const sketchRef = useRef(null);
-  const cubeSizeRef = useRef(getCubeSize());
+  const instanceRef = useRef(null);
+  const [cubeSize] = useState(getCubeSize);
 
   useEffect(() => {
     const container = sketchRef.current;
     if (!container) return;
 
-    // Destroy any existing instance before creating a new one
-    if (activeCubeInstance) {
-      activeCubeInstance._loop = false;
-      if (activeCubeInstance._requestAnimId) {
-        window.cancelAnimationFrame(activeCubeInstance._requestAnimId);
-      }
-      activeCubeInstance.remove();
-      activeCubeInstance = null;
+    // Clean up any previous instance
+    if (instanceRef.current) {
+      instanceRef.current.remove();
+      instanceRef.current = null;
     }
 
-    // Remove any leftover canvases
-    document.querySelectorAll('canvas.p5Canvas').forEach(c => c.remove());
+    // Clear container
     while (container.firstChild) {
       container.removeChild(container.firstChild);
     }
@@ -56,7 +49,7 @@ const InteractiveCube = () => {
       let lastMouseY = 0;
 
       p.setup = () => {
-        const size = cubeSizeRef.current;
+        const size = cubeSize;
         p.createCanvas(size, size, p.WEBGL);
       };
 
@@ -75,7 +68,7 @@ const InteractiveCube = () => {
         p.rotateY(rotationY);
         p.noStroke();
 
-        const size = cubeSizeRef.current * 0.4;
+        const size = cubeSize * 0.4;
         const half = size / 2;
 
         const faces = [
@@ -140,23 +133,17 @@ const InteractiveCube = () => {
     };
 
     const instance = new p5(sketch, container);
-    activeCubeInstance = instance;
+    instanceRef.current = instance;
 
     return () => {
-      instance._loop = false;
-      if (instance._requestAnimId) {
-        window.cancelAnimationFrame(instance._requestAnimId);
-      }
-      container.querySelectorAll('canvas').forEach(c => c.remove());
-      document.querySelectorAll('canvas.p5Canvas').forEach(c => c.remove());
-      instance.remove();
-      if (activeCubeInstance === instance) {
-        activeCubeInstance = null;
+      if (instanceRef.current) {
+        instanceRef.current.remove();
+        instanceRef.current = null;
       }
     };
-  }, []);
+  }, [cubeSize]);
 
-  const size = cubeSizeRef.current;
+  const size = cubeSize;
   return (
     <div
       ref={sketchRef}
