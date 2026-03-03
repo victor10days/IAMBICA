@@ -10,6 +10,7 @@ import Triangle from '../components/TriangleAnimation';
 import SamuelYanShader from '../components/SamuelYanShader';
 import PhilosophyShader from '../components/PhilosophyShader';
 import InteractSketch from '../components/InteractShader';
+import P5BallsSketch from '../components/P5BallsSketch';
 
 // Main Single Page Home Component
 const SinglePageHome = () => {
@@ -404,61 +405,72 @@ const SinglePageHome = () => {
 
       {/* History Section */}
       <section id="history" style={{
-        minHeight: '60dvh',
+        height: '100dvh',
         width: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: COLORS.dark,
+        position: 'relative',
+        overflow: 'hidden',
         scrollSnapAlign: 'start',
         boxSizing: 'border-box',
-        padding: isMobile ? '60px 20px' : '80px 40px',
-        textAlign: 'center'
       }}>
-        <h2 style={{
-          fontSize: isMobile ? '32px' : '42px',
-          color: COLORS.cream,
-          marginBottom: isMobile ? '16px' : '20px'
+        <div style={{ position: 'absolute', inset: 0 }}>
+          <P5BallsSketch height="100%" />
+        </div>
+        <div style={{
+          position: 'absolute',
+          inset: 0,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: isMobile ? '60px 20px' : '80px 40px',
+          textAlign: 'center',
         }}>
-          {t('home.historyTitle')}
-        </h2>
-        <p style={{
-          fontSize: isMobile ? '14px' : '18px',
-          color: COLORS.tan,
-          lineHeight: '1.8',
-          maxWidth: '600px',
-          margin: '0 auto',
-          marginBottom: isMobile ? '24px' : '32px',
-          padding: '0 20px'
-        }}>
-          {t('home.historyDesc')}
-        </p>
-        <Link
-          to="/history"
-          style={{
-            display: 'inline-block',
-            padding: isMobile ? '12px 30px' : '15px 40px',
-            fontSize: isMobile ? '14px' : '16px',
-            backgroundColor: 'transparent',
-            color: COLORS.cream,
-            border: `2px solid ${COLORS.cream}`,
-            cursor: 'pointer',
-            transition: 'all 0.3s',
-            textDecoration: 'none',
-            fontFamily: FONT
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = COLORS.red;
-            e.currentTarget.style.borderColor = COLORS.red;
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = 'transparent';
-            e.currentTarget.style.borderColor = COLORS.cream;
-          }}
-        >
-          {t('home.exploreArchive')}
-        </Link>
+          <h2 style={{
+            fontSize: isMobile ? '32px' : '42px',
+            color: COLORS.dark,
+            marginBottom: isMobile ? '16px' : '20px',
+          }}>
+            {t('home.historyTitle')}
+          </h2>
+          <p style={{
+            fontSize: isMobile ? '14px' : '18px',
+            color: COLORS.text,
+            lineHeight: '1.8',
+            maxWidth: '600px',
+            margin: '0 auto',
+            marginBottom: isMobile ? '24px' : '32px',
+            padding: '0 20px',
+          }}>
+            {t('home.historyDesc')}
+          </p>
+          <Link
+            to="/history"
+            style={{
+              display: 'inline-block',
+              padding: isMobile ? '12px 30px' : '15px 40px',
+              fontSize: isMobile ? '14px' : '16px',
+              backgroundColor: 'transparent',
+              color: COLORS.dark,
+              border: `2px solid ${COLORS.dark}`,
+              cursor: 'pointer',
+              transition: 'all 0.3s',
+              textDecoration: 'none',
+              fontFamily: FONT,
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = COLORS.red;
+              e.currentTarget.style.borderColor = COLORS.red;
+              e.currentTarget.style.color = COLORS.cream;
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'transparent';
+              e.currentTarget.style.borderColor = COLORS.dark;
+              e.currentTarget.style.color = COLORS.dark;
+            }}
+          >
+            {t('home.exploreArchive')}
+          </Link>
+        </div>
       </section>
 
       {/* Interact Section with Triangle Animation */}

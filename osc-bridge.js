@@ -32,6 +32,8 @@ const OSC_PORT = parseInt(getArg('--osc-port', '9000'));
 const OSC_HOST = getArg('--osc-host', '127.0.0.1');
 const INITIAL_MODE = getArg('--mode', 'separate');
 const ZONE_COUNT = parseInt(getArg('--zones', '4')); // 4 = 2x2 grid, 9 = 3x3, etc.
+const STATION = getArg('--station', ''); // e.g. --station 1  →  prefixes all OSC with /station/1/
+const OSC_PREFIX = STATION ? `/station/${STATION}` : '';
 
 // Server state
 let currentMode = INITIAL_MODE;
@@ -52,7 +54,7 @@ console.log(`OSC sending to ${OSC_HOST}:${OSC_PORT}`);
 // Helper: Send OSC message using raw UDP + osc encoding
 function sendOSCMessage(address, oscArgs) {
   const msg = osc.writeMessage({
-    address: address,
+    address: OSC_PREFIX + address,
     args: oscArgs.map(arg => ({
       type: typeof arg === 'number' ? 'f' : 's',
       value: arg
@@ -60,6 +62,19 @@ function sendOSCMessage(address, oscArgs) {
   });
   const buffer = Buffer.from(msg);
   udpSocket.send(buffer, 0, buffer.length, OSC_PORT, OSC_HOST);
+}
+
+// Helper: Send bundle of all user positions as a single OSC message
+// Format: /users/bundle [count, u1_id, u1_x, u1_y, u2_id, u2_x, u2_y, ...]
+function sendUserBundle() {
+  const positions = [];
+  for (const [ws, client] of clients) {
+    const pos = userPositions.get(client.userId) || { x: 0.5, y: 0.5 };
+    positions.push(client.userId, pos.x, pos.y);
+  }
+  if (positions.length > 0) {
+    sendOSCMessage('/users/bundle', [clients.size, ...positions]);
+  }
 }
 
 // Helper: Broadcast to all clients
@@ -118,9 +133,13 @@ const modeHandlers = {
   // Each user gets their own OSC channel
   separate: (userId, address, args) => {
     sendOSCMessage(`/user/${userId}${address}`, args);
-
-    // Also send user count
     sendOSCMessage('/users/count', [clients.size]);
+
+    // Also send aggregate bundle so receivers can read all positions at once:
+    // /users/bundle [count, u1_id, u1_x, u1_y, u2_id, u2_x, u2_y, ...]
+    if (address === '/mouse/xy' || address === '/mouse/x' || address === '/mouse/y') {
+      sendUserBundle();
+    }
   },
 
   // Only active user's data is sent
@@ -204,14 +223,23 @@ console.log(`
 WebSocket Server: ws://0.0.0.0:${WS_PORT}
   → From this machine:  ws://localhost:${WS_PORT}
   → From other devices: ws://${localIP}:${WS_PORT}
+  → Station URL:        /interact?host=${localIP}&port=${WS_PORT}
 OSC Output:       ${OSC_HOST}:${OSC_PORT}
+OSC Prefix:       ${OSC_PREFIX || '(none)'}
 Initial Mode:     ${currentMode}
-
+${STATION ? `Station ID:       ${STATION}\n` : ''}
 Modes available:
-  • separate - Each user gets /user/N/... addresses
+  • separate - Each user gets ${OSC_PREFIX}/user/N/... addresses
+               + ${OSC_PREFIX}/users/bundle [count, id, x, y, ...] for all users
   • single   - One active user at a time
   • blended  - All inputs averaged together
   • zones    - Canvas split into ${ZONE_COUNT} zones
+
+Multi-station example:
+  node osc-bridge.js --station 1 --ws-port 8001 --osc-port 9001
+  node osc-bridge.js --station 2 --ws-port 8002 --osc-port 9002
+  → Clients: /interact?host=${localIP}&port=8001  (station 1)
+             /interact?host=${localIP}&port=8002  (station 2)
 
 Waiting for connections...
 `);

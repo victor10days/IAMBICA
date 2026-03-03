@@ -69,12 +69,17 @@ const Interact = () => {
   const [isConnected, setIsConnected] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState('disconnected'); // 'disconnected' | 'connecting' | 'connected' | 'error'
   const [oscHost, setOscHost] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('host')) return params.get('host');
     if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
       return window.location.hostname;
     }
     return '127.0.0.1';
   });
-  const [oscPort, setOscPort] = useState('8000');
+  const [oscPort, setOscPort] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('port') || '8000';
+  });
   const [mousePos, setMousePos] = useState({ x: 0.5, y: 0.5 });
 
   // Multi-user state
