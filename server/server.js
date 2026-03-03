@@ -63,7 +63,7 @@ if (fs.existsSync(DIST_DIR)) {
   app.use(express.static(DIST_DIR, { maxAge: '1d' }));
 
   // SPA catch-all: serve index.html for any non-API route
-  app.get('*splat', (req, res) => {
+  app.get('*path', (req, res) => {
     if (req.path.startsWith('/api/')) {
       return res.status(404).json({ error: 'API endpoint not found' });
     }
@@ -71,7 +71,7 @@ if (fs.existsSync(DIST_DIR)) {
   });
 } else {
   // In dev mode, return 404 for unknown API routes
-  app.all('/api/*splat', (req, res) => {
+  app.all('/api/*path', (req, res) => {
     res.status(404).json({ error: 'API endpoint not found' });
   });
 }

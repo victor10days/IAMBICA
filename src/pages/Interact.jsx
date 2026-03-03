@@ -1,30 +1,24 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useMobile } from '../hooks/useMobile';
 import { COLORS, FONT } from '../styles/theme';
 
-const MODES = [
-  { id: 'separate', label: 'Separado', desc: 'Cada usuario tiene su propio canal' },
-  { id: 'single', label: 'Individual', desc: 'Un usuario activo a la vez' },
-  { id: 'blended', label: 'Mezclado', desc: 'Todas las entradas promediadas' },
-  { id: 'zones', label: 'Zonas', desc: 'Lienzo dividido en regiones' }
-];
-
-const StatusBadge = ({ isConnected, currentMode, userId, isActive, totalUsers, userZone, isMobile }) => {
+const StatusBadge = ({ isConnected, currentMode, userId, isActive, totalUsers, userZone, isMobile, t }) => {
   if (!isConnected) return null;
 
   let statusText = '';
   let statusColor = COLORS.red;
 
   if (currentMode === 'separate') {
-    statusText = `Usuario #${userId}`;
+    statusText = `${t('interact.user')} #${userId}`;
   } else if (currentMode === 'single') {
-    statusText = isActive ? 'Activo' : 'Esperando';
+    statusText = isActive ? t('interact.active') : t('interact.waiting');
     statusColor = isActive ? '#2B8C2B' : COLORS.textLight;
   } else if (currentMode === 'blended') {
-    statusText = `Mezclando (${totalUsers})`;
+    statusText = `${t('interact.blending')} (${totalUsers})`;
   } else if (currentMode === 'zones') {
-    statusText = `Zona ${userZone}`;
+    statusText = `${t('interact.zone')} ${userZone}`;
   }
 
   return (
@@ -57,9 +51,11 @@ const StatusBadge = ({ isConnected, currentMode, userId, isActive, totalUsers, u
   );
 };
 
+
 const Interact = () => {
   const canvasRef = useRef(null);
   const wsRef = useRef(null);
+  const { t, i18n } = useTranslation();
 
   // Use refs for values that the animation loop needs (avoids re-creating loop)
   const mousePosRef = useRef({ x: 0.5, y: 0.5 });
@@ -97,6 +93,11 @@ const Interact = () => {
   useEffect(() => { isActiveRef.current = isActive; }, [isActive]);
   useEffect(() => { userZoneRef.current = userZone; }, [userZone]);
   useEffect(() => { connectionStatusRef.current = connectionStatus; }, [connectionStatus]);
+
+  // Store translation function ref for canvas drawing
+  const tRef = useRef(t);
+  const langRef = useRef(i18n.language);
+  useEffect(() => { tRef.current = t; langRef.current = i18n.language; }, [t, i18n.language]);
 
   // Send OSC message
   const sendOSC = useCallback((address, args) => {
@@ -275,6 +276,7 @@ const Interact = () => {
       const mode = currentModeRef.current;
       const active = isActiveRef.current;
       const zone = userZoneRef.current;
+      const currentT = tRef.current;
 
       // Clear canvas
       ctx.fillStyle = COLORS.cream;
@@ -323,7 +325,7 @@ const Interact = () => {
         for (let i = 0; i < gridSize * gridSize; i++) {
           const zx = (i % gridSize) * zoneWidth + zoneWidth / 2;
           const zy = Math.floor(i / gridSize) * zoneHeight + zoneHeight / 2;
-          ctx.fillText(`Zona ${i + 1}`, zx, zy);
+          ctx.fillText(`${currentT('interact.zone')} ${i + 1}`, zx, zy);
         }
         ctx.textAlign = 'left';
       }
@@ -337,9 +339,9 @@ const Interact = () => {
         ctx.font = `bold ${fontSize}px ${FONT}`;
         ctx.fillStyle = COLORS.cream;
         ctx.textAlign = 'center';
-        ctx.fillText('Esperando tu turno...', canvas.width / 2, canvas.height / 2 - 20);
+        ctx.fillText(currentT('interact.waitingForTurn'), canvas.width / 2, canvas.height / 2 - 20);
         ctx.font = `${fontSize * 0.6}px ${FONT}`;
-        ctx.fillText('Toca "Solicitar Control" para activarte', canvas.width / 2, canvas.height / 2 + 20);
+        ctx.fillText(currentT('interact.tapToActivate'), canvas.width / 2, canvas.height / 2 + 20);
         ctx.textAlign = 'left';
       }
 
@@ -412,10 +414,10 @@ const Interact = () => {
   // Connection status indicator
   const getConnectionButtonText = () => {
     switch (connectionStatus) {
-      case 'connecting': return 'Conectando...';
-      case 'connected': return 'Desconectar';
-      case 'error': return 'Reintentar';
-      default: return 'Conectar';
+      case 'connecting': return t('interact.connecting');
+      case 'connected': return t('interact.disconnect');
+      case 'error': return t('interact.retry');
+      default: return t('interact.connect');
     }
   };
 
@@ -427,6 +429,13 @@ const Interact = () => {
       default: return COLORS.dark;
     }
   };
+
+  const MODES = [
+    { id: 'separate', label: t('interact.modeSeparate'), desc: t('interact.modeSeparateDesc') },
+    { id: 'single', label: t('interact.modeSingle'), desc: t('interact.modeSingleDesc') },
+    { id: 'blended', label: t('interact.modeBlended'), desc: t('interact.modeBlendedDesc') },
+    { id: 'zones', label: t('interact.modeZones'), desc: t('interact.modeZonesDesc') }
+  ];
 
   return (
     <div style={{
@@ -462,6 +471,7 @@ const Interact = () => {
         totalUsers={totalUsers}
         userZone={userZone}
         isMobile={isMobile}
+        t={t}
       />
 
       {/* Header - Hidden on mobile */}
@@ -495,10 +505,10 @@ const Interact = () => {
             alignItems: 'center',
             pointerEvents: 'auto'
           }}>
-            <Link to="/" state={{ scrollTo: 'about' }} style={{ color: COLORS.text, textDecoration: 'none', fontFamily: FONT, fontSize: '16px' }}>Sobre Nosotros</Link>
-            <Link to="/" state={{ scrollTo: 'mission' }} style={{ color: COLORS.text, textDecoration: 'none', fontFamily: FONT, fontSize: '16px' }}>Misión</Link>
-            <Link to="/" state={{ scrollTo: 'philosophy' }} style={{ color: COLORS.text, textDecoration: 'none', fontFamily: FONT, fontSize: '16px' }}>Filosofía</Link>
-            <Link to="/interact" style={{ color: COLORS.red, textDecoration: 'none', fontFamily: FONT, fontSize: '16px' }}>Interactuar</Link>
+            <Link to="/" state={{ scrollTo: 'about' }} style={{ color: COLORS.text, textDecoration: 'none', fontFamily: FONT, fontSize: '16px' }}>{t('nav.about')}</Link>
+            <Link to="/" state={{ scrollTo: 'mission' }} style={{ color: COLORS.text, textDecoration: 'none', fontFamily: FONT, fontSize: '16px' }}>{t('nav.mission')}</Link>
+            <Link to="/" state={{ scrollTo: 'philosophy' }} style={{ color: COLORS.text, textDecoration: 'none', fontFamily: FONT, fontSize: '16px' }}>{t('nav.philosophy')}</Link>
+            <Link to="/interact" style={{ color: COLORS.red, textDecoration: 'none', fontFamily: FONT, fontSize: '16px' }}>{t('nav.interact')}</Link>
           </nav>
         </header>
       )}
@@ -551,7 +561,7 @@ const Interact = () => {
             border: '1px solid #B22222',
             marginBottom: '5px'
           }}>
-            Error de conexión. Verifica que el puente OSC esté ejecutándose.
+            {t('interact.errorConnection')}
           </div>
         )}
 
@@ -561,7 +571,7 @@ const Interact = () => {
             type="text"
             value={oscHost}
             onChange={(e) => setOscHost(e.target.value)}
-            placeholder="IP del Host"
+            placeholder={t('interact.hostPlaceholder')}
             disabled={isConnected || connectionStatus === 'connecting'}
             style={{
               padding: isMobile ? '8px 6px' : '10px 12px',
@@ -578,7 +588,7 @@ const Interact = () => {
             type="text"
             value={oscPort}
             onChange={(e) => setOscPort(e.target.value)}
-            placeholder="Puerto"
+            placeholder={t('interact.portPlaceholder')}
             disabled={isConnected || connectionStatus === 'connecting'}
             style={{
               padding: isMobile ? '8px 6px' : '10px 12px',
@@ -620,7 +630,7 @@ const Interact = () => {
             color: COLORS.textLight,
             marginBottom: '4px'
           }}>
-            Modo{isConnected ? ` (${totalUsers} usuario${totalUsers !== 1 ? 's' : ''})` : ''}
+            {t('interact.mode')}{isConnected ? ` (${totalUsers} ${t('interact.users')})` : ''}
           </div>
           <div style={{
             display: 'grid',
@@ -658,7 +668,7 @@ const Interact = () => {
               marginTop: '3px',
               fontStyle: 'italic'
             }}>
-              Conecta para cambiar el modo
+              {t('interact.connectToChangeMode')}
             </div>
           )}
         </div>
@@ -679,7 +689,7 @@ const Interact = () => {
               borderRadius: '2px'
             }}
           >
-            Solicitar Control
+            {t('interact.requestControl')}
           </button>
         )}
 
@@ -695,7 +705,7 @@ const Interact = () => {
         }}>
           <span>X: {mousePos.x.toFixed(3)} | Y: {mousePos.y.toFixed(3)}</span>
           {isConnected && userId && (
-            <span>Usuario #{userId}</span>
+            <span>{t('interact.user')} #{userId}</span>
           )}
         </div>
       </div>
@@ -717,28 +727,28 @@ const Interact = () => {
           borderRadius: '2px'
         }}>
           <h3 style={{ margin: '0 0 8px 0', fontSize: '14px' }}>
-            {currentMode === 'separate' && 'Canales Separados'}
-            {currentMode === 'single' && 'Usuario Activo Individual'}
-            {currentMode === 'blended' && 'Entrada Mezclada'}
-            {currentMode === 'zones' && 'Control por Zonas'}
+            {currentMode === 'separate' && t('interact.separateChannels')}
+            {currentMode === 'single' && t('interact.singleActiveUser')}
+            {currentMode === 'blended' && t('interact.blendedInput')}
+            {currentMode === 'zones' && t('interact.zoneControl')}
           </h3>
           <div style={{ lineHeight: '1.5' }}>
             {currentMode === 'separate' && (
-              <>Tus direcciones OSC:<br/>
+              <>{t('interact.yourOscAddresses')}<br/>
               <code style={{ fontSize: '10px' }}>/user/{userId}/mouse/x</code><br/>
               <code style={{ fontSize: '10px' }}>/user/{userId}/mouse/y</code><br/>
               <code style={{ fontSize: '10px' }}>/user/{userId}/press</code></>
             )}
             {currentMode === 'single' && (
-              <>Solo se envían los datos del usuario activo.<br/>
-              {isActive ? <strong>Estás activo actualmente.</strong> : 'Estás esperando el control.'}</>
+              <>{t('interact.onlyActiveData')}<br/>
+              {isActive ? <strong>{t('interact.youAreActive')}</strong> : t('interact.youAreWaiting')}</>
             )}
             {currentMode === 'blended' && (
-              <>Las posiciones de los {totalUsers} usuarios se promedian.<br/>
-              ¡Muévanse juntos para un control suave!</>
+              <>{t('interact.positionsAveraged', { count: totalUsers })}<br/>
+              {t('interact.moveTogether')}</>
             )}
             {currentMode === 'zones' && (
-              <>Controlas la <strong>Zona {userZone}</strong>.<br/>
+              <>{t('interact.youControlZone', { zone: userZone })}<br/>
               OSC: <code style={{ fontSize: '10px' }}>/zone/{userZone}/...</code></>
             )}
           </div>

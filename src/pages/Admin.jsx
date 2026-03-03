@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import Header from '../components/Header';
 import { COLORS, FONT, API_BASE } from '../styles/theme';
 
 const Admin = () => {
+  const { t } = useTranslation();
   const [events, setEvents] = useState([]);
   const [artists, setArtists] = useState([]);
   const [message, setMessage] = useState('');
@@ -43,7 +45,7 @@ const Admin = () => {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
     });
     if (res.ok) {
-      showMessage('Evento creado');
+      showMessage(t('admin.eventCreated'));
       setEventForm({ slug: '', name: '', series: '', edition: '', year: '', location: '', description: '', date_start: '' });
       fetchData();
     } else {
@@ -61,7 +63,7 @@ const Admin = () => {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
     });
     if (res.ok) {
-      showMessage('Artista creado');
+      showMessage(t('admin.artistCreated'));
       setArtistForm({ slug: '', name: '', type: 'music', bio: '' });
       fetchData();
     } else {
@@ -72,7 +74,7 @@ const Admin = () => {
 
   const handleUpload = async (e) => {
     e.preventDefault();
-    if (!uploadFile) return showMessage('Selecciona un archivo');
+    if (!uploadFile) return showMessage(t('admin.selectFile'));
 
     const formData = new FormData();
     formData.append('image', uploadFile);
@@ -80,7 +82,7 @@ const Admin = () => {
 
     const res = await fetch(`${API_BASE}/media/upload`, { method: 'POST', body: formData });
     if (res.ok) {
-      showMessage('Multimedia subida');
+      showMessage(t('admin.mediaUploaded'));
       setUploadFile(null);
     } else {
       const err = await res.json();
@@ -89,21 +91,21 @@ const Admin = () => {
   };
 
   const handleDeleteEvent = async (slug) => {
-    if (!window.confirm(`¿Eliminar evento "${slug}"?`)) return;
+    if (!window.confirm(t('admin.confirmDeleteEvent', { slug }))) return;
     try {
       const res = await fetch(`${API_BASE}/events/${slug}`, { method: 'DELETE' });
-      if (res.ok) { showMessage('Evento eliminado'); fetchData(); }
+      if (res.ok) { showMessage(t('admin.eventDeleted')); fetchData(); }
       else { const err = await res.json(); showMessage(`Error: ${err.error}`); }
-    } catch { showMessage('Error de conexión'); }
+    } catch { showMessage(t('admin.connectionError')); }
   };
 
   const handleDeleteArtist = async (slug) => {
-    if (!window.confirm(`¿Eliminar artista "${slug}"?`)) return;
+    if (!window.confirm(t('admin.confirmDeleteArtist', { slug }))) return;
     try {
       const res = await fetch(`${API_BASE}/artists/${slug}`, { method: 'DELETE' });
-      if (res.ok) { showMessage('Artista eliminado'); fetchData(); }
+      if (res.ok) { showMessage(t('admin.artistDeleted')); fetchData(); }
       else { const err = await res.json(); showMessage(`Error: ${err.error}`); }
-    } catch { showMessage('Error de conexión'); }
+    } catch { showMessage(t('admin.connectionError')); }
   };
 
   const inputStyle = {
@@ -153,8 +155,8 @@ const Admin = () => {
       <Header />
 
       <div style={{ padding: '80px 20px 40px', maxWidth: '800px', margin: '0 auto' }}>
-        <h1 style={{ fontSize: '32px', color: COLORS.dark, marginBottom: '8px', fontFamily: FONT }}>Administración</h1>
-        <p style={{ color: COLORS.textLight, fontSize: '14px', marginBottom: '24px', fontFamily: FONT }}>Administrar eventos, artistas y archivos multimedia.</p>
+        <h1 style={{ fontSize: '32px', color: COLORS.dark, marginBottom: '8px', fontFamily: FONT }}>{t('admin.title')}</h1>
+        <p style={{ color: COLORS.textLight, fontSize: '14px', marginBottom: '24px', fontFamily: FONT }}>{t('admin.subtitle')}</p>
 
         {message && (
           <div style={{
@@ -171,50 +173,50 @@ const Admin = () => {
 
         {/* Tabs */}
         <div style={{ display: 'flex', gap: '0', marginBottom: '30px' }}>
-          <button style={tabStyle(activeTab === 'events')} onClick={() => setActiveTab('events')}>Eventos</button>
-          <button style={tabStyle(activeTab === 'artists')} onClick={() => setActiveTab('artists')}>Artistas</button>
-          <button style={tabStyle(activeTab === 'upload')} onClick={() => setActiveTab('upload')}>Subir Multimedia</button>
+          <button style={tabStyle(activeTab === 'events')} onClick={() => setActiveTab('events')}>{t('admin.tabEvents')}</button>
+          <button style={tabStyle(activeTab === 'artists')} onClick={() => setActiveTab('artists')}>{t('admin.tabArtists')}</button>
+          <button style={tabStyle(activeTab === 'upload')} onClick={() => setActiveTab('upload')}>{t('admin.tabUpload')}</button>
         </div>
 
         {/* Event Form */}
         {activeTab === 'events' && (
           <div>
-            <h2 style={{ fontSize: '20px', color: COLORS.dark, marginBottom: '16px', fontFamily: FONT }}>Crear Evento</h2>
+            <h2 style={{ fontSize: '20px', color: COLORS.dark, marginBottom: '16px', fontFamily: FONT }}>{t('admin.createEvent')}</h2>
             <form onSubmit={handleCreateEvent}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div>
-                  <label style={labelStyle}>Nombre *</label>
+                  <label style={labelStyle}>{t('admin.name')} *</label>
                   <input style={inputStyle} value={eventForm.name} onChange={e => setEventForm(f => ({ ...f, name: e.target.value }))} required />
                 </div>
                 <div>
-                  <label style={labelStyle}>Slug *</label>
-                  <input style={inputStyle} value={eventForm.slug} onChange={e => setEventForm(f => ({ ...f, slug: e.target.value }))} placeholder="ej. iambica-3" required />
+                  <label style={labelStyle}>{t('admin.slug')} *</label>
+                  <input style={inputStyle} value={eventForm.slug} onChange={e => setEventForm(f => ({ ...f, slug: e.target.value }))} placeholder={t('admin.slugPlaceholder')} required />
                 </div>
                 <div>
-                  <label style={labelStyle}>Año *</label>
+                  <label style={labelStyle}>{t('admin.year')} *</label>
                   <input style={inputStyle} type="number" value={eventForm.year} onChange={e => setEventForm(f => ({ ...f, year: e.target.value }))} required />
                 </div>
                 <div>
-                  <label style={labelStyle}>Fecha</label>
+                  <label style={labelStyle}>{t('admin.date')}</label>
                   <input style={inputStyle} type="date" value={eventForm.date_start} onChange={e => setEventForm(f => ({ ...f, date_start: e.target.value }))} />
                 </div>
                 <div>
-                  <label style={labelStyle}>Serie</label>
-                  <input style={inputStyle} value={eventForm.series} onChange={e => setEventForm(f => ({ ...f, series: e.target.value }))} placeholder="ej. iambica, modula" />
+                  <label style={labelStyle}>{t('admin.series')}</label>
+                  <input style={inputStyle} value={eventForm.series} onChange={e => setEventForm(f => ({ ...f, series: e.target.value }))} placeholder={t('admin.seriesPlaceholder')} />
                 </div>
                 <div>
-                  <label style={labelStyle}>Edición</label>
+                  <label style={labelStyle}>{t('admin.edition')}</label>
                   <input style={inputStyle} type="number" value={eventForm.edition} onChange={e => setEventForm(f => ({ ...f, edition: e.target.value }))} />
                 </div>
               </div>
-              <label style={labelStyle}>Ubicación</label>
+              <label style={labelStyle}>{t('admin.location')}</label>
               <input style={inputStyle} value={eventForm.location} onChange={e => setEventForm(f => ({ ...f, location: e.target.value }))} />
-              <label style={labelStyle}>Descripción</label>
+              <label style={labelStyle}>{t('admin.description')}</label>
               <textarea style={{ ...inputStyle, minHeight: '80px', resize: 'vertical' }} value={eventForm.description} onChange={e => setEventForm(f => ({ ...f, description: e.target.value }))} />
-              <button type="submit" style={buttonStyle}>Crear Evento</button>
+              <button type="submit" style={buttonStyle}>{t('admin.createEvent')}</button>
             </form>
 
-            <h3 style={{ fontSize: '18px', color: COLORS.dark, margin: '40px 0 16px', fontFamily: FONT }}>Eventos Existentes ({events.length})</h3>
+            <h3 style={{ fontSize: '18px', color: COLORS.dark, margin: '40px 0 16px', fontFamily: FONT }}>{t('admin.existingEvents')} ({events.length})</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               {events.map(ev => (
                 <div key={ev.slug} style={{
@@ -229,7 +231,7 @@ const Admin = () => {
                     onClick={() => handleDeleteEvent(ev.slug)}
                     style={{ ...buttonStyle, padding: '4px 12px', fontSize: '12px' }}
                   >
-                    Eliminar
+                    {t('admin.delete')}
                   </button>
                 </div>
               ))}
@@ -240,29 +242,29 @@ const Admin = () => {
         {/* Artist Form */}
         {activeTab === 'artists' && (
           <div>
-            <h2 style={{ fontSize: '20px', color: COLORS.dark, marginBottom: '16px', fontFamily: FONT }}>Crear Artista</h2>
+            <h2 style={{ fontSize: '20px', color: COLORS.dark, marginBottom: '16px', fontFamily: FONT }}>{t('admin.createArtist')}</h2>
             <form onSubmit={handleCreateArtist}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div>
-                  <label style={labelStyle}>Nombre *</label>
+                  <label style={labelStyle}>{t('admin.name')} *</label>
                   <input style={inputStyle} value={artistForm.name} onChange={e => setArtistForm(f => ({ ...f, name: e.target.value }))} required />
                 </div>
                 <div>
-                  <label style={labelStyle}>Slug *</label>
-                  <input style={inputStyle} value={artistForm.slug} onChange={e => setArtistForm(f => ({ ...f, slug: e.target.value }))} placeholder="ej. nombre-artista" required />
+                  <label style={labelStyle}>{t('admin.slug')} *</label>
+                  <input style={inputStyle} value={artistForm.slug} onChange={e => setArtistForm(f => ({ ...f, slug: e.target.value }))} placeholder={t('admin.artistSlugPlaceholder')} required />
                 </div>
               </div>
-              <label style={labelStyle}>Tipo</label>
+              <label style={labelStyle}>{t('admin.type')}</label>
               <select style={inputStyle} value={artistForm.type} onChange={e => setArtistForm(f => ({ ...f, type: e.target.value }))}>
-                <option value="music">Música</option>
-                <option value="visual">Arte Visual</option>
+                <option value="music">{t('admin.music')}</option>
+                <option value="visual">{t('admin.visualArt')}</option>
               </select>
-              <label style={labelStyle}>Biografía</label>
+              <label style={labelStyle}>{t('admin.biography')}</label>
               <textarea style={{ ...inputStyle, minHeight: '80px', resize: 'vertical' }} value={artistForm.bio} onChange={e => setArtistForm(f => ({ ...f, bio: e.target.value }))} />
-              <button type="submit" style={buttonStyle}>Crear Artista</button>
+              <button type="submit" style={buttonStyle}>{t('admin.createArtist')}</button>
             </form>
 
-            <h3 style={{ fontSize: '18px', color: COLORS.dark, margin: '40px 0 16px', fontFamily: FONT }}>Artistas Existentes ({artists.length})</h3>
+            <h3 style={{ fontSize: '18px', color: COLORS.dark, margin: '40px 0 16px', fontFamily: FONT }}>{t('admin.existingArtists')} ({artists.length})</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               {artists.map(ar => (
                 <div key={ar.slug} style={{
@@ -277,7 +279,7 @@ const Admin = () => {
                     onClick={() => handleDeleteArtist(ar.slug)}
                     style={{ ...buttonStyle, padding: '4px 12px', fontSize: '12px' }}
                   >
-                    Eliminar
+                    {t('admin.delete')}
                   </button>
                 </div>
               ))}
@@ -288,9 +290,9 @@ const Admin = () => {
         {/* Upload Form */}
         {activeTab === 'upload' && (
           <div>
-            <h2 style={{ fontSize: '20px', color: COLORS.dark, marginBottom: '16px', fontFamily: FONT }}>Subir Multimedia</h2>
+            <h2 style={{ fontSize: '20px', color: COLORS.dark, marginBottom: '16px', fontFamily: FONT }}>{t('admin.uploadMultimedia')}</h2>
             <form onSubmit={handleUpload}>
-              <label style={labelStyle}>Archivo de Imagen *</label>
+              <label style={labelStyle}>{t('admin.imageFile')} *</label>
               <input
                 type="file"
                 accept="image/jpeg,image/png,image/gif,image/webp"
@@ -299,32 +301,32 @@ const Admin = () => {
               />
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div>
-                  <label style={labelStyle}>Evento</label>
+                  <label style={labelStyle}>{t('admin.event')}</label>
                   <select style={inputStyle} value={uploadForm.event_id} onChange={e => setUploadForm(f => ({ ...f, event_id: e.target.value }))}>
-                    <option value="">Ninguno</option>
+                    <option value="">{t('admin.none')}</option>
                     {events.map(ev => <option key={ev.id} value={ev.id}>{ev.name} ({ev.year})</option>)}
                   </select>
                 </div>
                 <div>
-                  <label style={labelStyle}>Artista</label>
+                  <label style={labelStyle}>{t('admin.artist')}</label>
                   <select style={inputStyle} value={uploadForm.artist_id} onChange={e => setUploadForm(f => ({ ...f, artist_id: e.target.value }))}>
-                    <option value="">Ninguno</option>
+                    <option value="">{t('admin.none')}</option>
                     {artists.map(ar => <option key={ar.id} value={ar.id}>{ar.name}</option>)}
                   </select>
                 </div>
               </div>
-              <label style={labelStyle}>Tipo de Multimedia</label>
+              <label style={labelStyle}>{t('admin.mediaType')}</label>
               <select style={inputStyle} value={uploadForm.media_type} onChange={e => setUploadForm(f => ({ ...f, media_type: e.target.value }))}>
-                <option value="photo">Foto</option>
-                <option value="promo">Promo</option>
-                <option value="poster">Póster</option>
-                <option value="portrait">Retrato</option>
+                <option value="photo">{t('admin.photo')}</option>
+                <option value="promo">{t('admin.promo')}</option>
+                <option value="poster">{t('admin.poster')}</option>
+                <option value="portrait">{t('admin.portrait')}</option>
               </select>
-              <label style={labelStyle}>Subdirectorio</label>
-              <input style={inputStyle} value={uploadForm.subdir} onChange={e => setUploadForm(f => ({ ...f, subdir: e.target.value }))} placeholder="ej. uploads, photos/nuevo-evento" />
-              <label style={labelStyle}>Leyenda</label>
+              <label style={labelStyle}>{t('admin.subdirectory')}</label>
+              <input style={inputStyle} value={uploadForm.subdir} onChange={e => setUploadForm(f => ({ ...f, subdir: e.target.value }))} placeholder={t('admin.subdirPlaceholder')} />
+              <label style={labelStyle}>{t('admin.caption')}</label>
               <input style={inputStyle} value={uploadForm.caption} onChange={e => setUploadForm(f => ({ ...f, caption: e.target.value }))} />
-              <button type="submit" style={buttonStyle}>Subir</button>
+              <button type="submit" style={buttonStyle}>{t('admin.upload')}</button>
             </form>
           </div>
         )}
