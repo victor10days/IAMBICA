@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { COLORS, FONT, ARCHIVES_BASE } from '../styles/theme';
 
 const ArtistCard = ({ artist, onClick, isMobile }) => {
+  const { t } = useTranslation();
   const [hovered, setHovered] = useState(false);
   const [imgError, setImgError] = useState(false);
 
@@ -78,7 +80,7 @@ const ArtistCard = ({ artist, onClick, isMobile }) => {
         fontFamily: FONT,
         display: 'inline-block',
       }}>
-        {artist.type === 'visual' ? 'Arte Visual' : 'Música'}
+        {artist.type === 'visual' ? t('history.visualArt') : t('history.music')}
       </span>
     </div>
   );

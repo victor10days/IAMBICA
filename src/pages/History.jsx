@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import Header from '../components/Header';
 import Timeline from '../components/Timeline';
 import ArtistCard from '../components/ArtistCard';
@@ -10,6 +11,7 @@ import { COLORS, FONT, ARCHIVES_BASE, API_BASE } from '../styles/theme';
 
 const History = () => {
   const { isMobile } = useMobile();
+  const { t } = useTranslation();
 
   const { data: timeline, loading: timelineLoading, error: timelineError } = useApi('/timeline');
   const { data: artists, loading: artistsLoading, error: artistsError } = useApi('/artists');
@@ -98,7 +100,7 @@ const History = () => {
           letterSpacing: '2px',
           fontFamily: FONT,
         }}>
-          ARCHIVO <span style={{ color: COLORS.red }}>2001-2003</span>
+          {t('history.archiveTitle').split('2001-2003')[0]}<span style={{ color: COLORS.red }}>2001-2003</span>
         </h1>
         <p style={{
           fontSize: isMobile ? '14px' : '20px',
@@ -108,8 +110,7 @@ const History = () => {
           margin: 0,
           fontFamily: FONT,
         }}>
-          Un registro vivo del Festival Iámbica — documentando los orígenes del movimiento
-          de arte experimental, música electrónica y medios digitales de Puerto Rico.
+          {t('history.archiveDesc')}
         </p>
       </section>
 
@@ -125,16 +126,16 @@ const History = () => {
           marginBottom: isMobile ? '30px' : '50px',
           fontFamily: FONT,
         }}>
-          Eventos
+          {t('history.events')}
         </h2>
 
         {timelineLoading ? (
           <div style={{ textAlign: 'center', color: COLORS.textLight, padding: '40px', fontFamily: FONT }}>
-            Cargando eventos...
+            {t('history.loadingEvents')}
           </div>
         ) : timelineError ? (
           <div style={{ textAlign: 'center', color: COLORS.red, padding: '40px', fontFamily: FONT }}>
-            Error cargando eventos. Verifica que el servidor esté ejecutándose.
+            {t('history.errorEvents')}
           </div>
         ) : (
           <Timeline
@@ -157,16 +158,16 @@ const History = () => {
           marginBottom: isMobile ? '30px' : '50px',
           fontFamily: FONT,
         }}>
-          Artistas
+          {t('history.artists')}
         </h2>
 
         {artistsLoading ? (
           <div style={{ textAlign: 'center', color: COLORS.textLight, padding: '40px', fontFamily: FONT }}>
-            Cargando artistas...
+            {t('history.loadingArtists')}
           </div>
         ) : artistsError ? (
           <div style={{ textAlign: 'center', color: COLORS.red, padding: '40px', fontFamily: FONT }}>
-            Error cargando artistas. Verifica que el servidor esté ejecutándose.
+            {t('history.errorArtists')}
           </div>
         ) : (
           <div style={{
@@ -216,7 +217,7 @@ const History = () => {
               onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = COLORS.red; e.currentTarget.style.color = COLORS.cream; e.currentTarget.style.borderColor = COLORS.red; }}
               onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = COLORS.dark; e.currentTarget.style.borderColor = COLORS.dark; }}
             >
-              Cerrar
+              {t('history.close')}
             </button>
           </div>
 
@@ -276,7 +277,7 @@ const History = () => {
                   )}
                   {eventDetail.artists.length > 0 && (
                     <div>
-                      <h4 style={{ fontSize: '16px', color: COLORS.dark, margin: '0 0 8px 0', fontFamily: FONT }}>Artistas</h4>
+                      <h4 style={{ fontSize: '16px', color: COLORS.dark, margin: '0 0 8px 0', fontFamily: FONT }}>{t('history.artists')}</h4>
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                         {eventDetail.artists.map(a => (
                           <span
@@ -315,7 +316,7 @@ const History = () => {
                     marginBottom: '16px',
                     fontFamily: FONT,
                   }}>
-                    Fotos ({eventDetail.media.length})
+                    {t('history.photos')} ({eventDetail.media.length})
                   </h4>
                   <PhotoGrid
                     photos={eventDetail.media}
@@ -376,7 +377,7 @@ const History = () => {
                     display: 'inline-block',
                     marginBottom: '16px',
                   }}>
-                    {artistDetail.artist.type === 'visual' ? 'Arte Visual' : 'Música'}
+                    {artistDetail.artist.type === 'visual' ? t('history.visualArt') : t('history.music')}
                   </span>
                   {artistDetail.artist.bio && (
                     <p style={{
@@ -391,7 +392,7 @@ const History = () => {
                   )}
                   {artistDetail.events.length > 0 && (
                     <div>
-                      <h4 style={{ fontSize: '16px', color: COLORS.dark, margin: '0 0 8px 0', fontFamily: FONT }}>Eventos</h4>
+                      <h4 style={{ fontSize: '16px', color: COLORS.dark, margin: '0 0 8px 0', fontFamily: FONT }}>{t('history.events')}</h4>
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', justifyContent: isMobile ? 'center' : 'flex-start' }}>
                         {artistDetail.events.map(ev => (
                           <span
@@ -430,7 +431,7 @@ const History = () => {
                     marginBottom: '16px',
                     fontFamily: FONT,
                   }}>
-                    Fotos ({artistDetail.media.length})
+                    {t('history.photos')} ({artistDetail.media.length})
                   </h4>
                   <PhotoGrid
                     photos={artistDetail.media}
@@ -455,7 +456,7 @@ const History = () => {
         fontFamily: FONT,
       }}>
         <p style={{ margin: 0, fontSize: '14px' }}>
-          © 2026 Festival Iámbica. Puerto Rico.
+          {t('home.footer')}
         </p>
       </footer>
 

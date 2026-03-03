@@ -1,5 +1,6 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { useTranslation, Trans } from 'react-i18next';
 import { useAudio } from '../hooks/useAudio';
 import { useMobile } from '../hooks/useMobile';
 import { COLORS, FONT } from '../styles/theme';
@@ -13,6 +14,7 @@ import InteractSketch from '../components/InteractShader';
 // Main Single Page Home Component
 const SinglePageHome = () => {
   const { isMobile, width, height } = useMobile();
+  const { t } = useTranslation();
   const [mousePos, setMousePos] = useState({
     x: window.innerWidth / 2,
     y: window.innerHeight / 2
@@ -222,7 +224,7 @@ const SinglePageHome = () => {
               maxWidth: '600px',
               margin: '0 auto'
             }}>
-              Festival de new media art.
+              {t('home.tagline')}
             </p>
           </div>
           <button
@@ -252,7 +254,7 @@ const SinglePageHome = () => {
               e.currentTarget.style.color = COLORS.text;
             }}
           >
-            Descubre Más
+            {t('home.discoverMore')}
           </button>
         </div>
       </section>
@@ -294,7 +296,7 @@ const SinglePageHome = () => {
               textAlign: 'center',
               color: COLORS.dark
             }}>
-              Sobre Nosotros
+              {t('home.aboutTitle')}
             </h2>
             <p style={{
               margin: 0,
@@ -303,7 +305,9 @@ const SinglePageHome = () => {
               color: COLORS.text,
               textAlign: 'center'
             }}>
-              El Festival <span style={{ color: COLORS.red, fontWeight: 'bold' }}>Iámbica</span> (FI) es un evento anual dedicado a la exploración, producción y exhibición de prácticas artísticas contemporáneas que integran tecnología avanzada, innovación digital y experimentación multimedia.
+              <Trans i18nKey="home.aboutP1">
+                El Festival <span style={{ color: COLORS.red, fontWeight: 'bold' }}>Iámbica</span> (FI) es un evento anual dedicado a la exploración, producción y exhibición de prácticas artísticas contemporáneas que integran tecnología avanzada, innovación digital y experimentación multimedia.
+              </Trans>
             </p>
             <p style={{
               margin: isMobile ? '8px 0 0 0' : '15px 0 0 0',
@@ -312,7 +316,7 @@ const SinglePageHome = () => {
               color: COLORS.text,
               textAlign: 'center'
             }}>
-              Este festival aspira a convertir a Puerto Rico en un nodo caribeño de vanguardia para artistas, tecnólogos, investigadores y comunidades interesadas en el arte del futuro.
+              {t('home.aboutP2')}
             </p>
           </div>
         </div>
@@ -335,7 +339,7 @@ const SinglePageHome = () => {
           color: COLORS.dark,
           marginBottom: isMobile ? '0px' : '1px'
         }}>
-          Misión
+          {t('home.missionTitle')}
         </h2>
         <InteractiveCube key={location.key} />
         <p style={{
@@ -347,7 +351,7 @@ const SinglePageHome = () => {
           maxWidth: '600px',
           padding: '0 20px'
         }}>
-Crear un espacio accesible, inclusivo y dinámico donde artistas y comunidades puedan explorar las posibilidades del arte tecnológico, promoviendo la innovación, la formación y la colaboración global desde Puerto Rico.
+          {t('home.missionText')}
         </p>
       </section>
 
@@ -385,17 +389,76 @@ Crear un espacio accesible, inclusivo y dinámico donde artistas y comunidades p
               color: COLORS.dark,
               marginBottom: '20px'
             }}>
-              Objetivos
+              {t('home.objectivesTitle')}
             </h2>
               <ul style={{ textAlign: 'left', paddingLeft: isMobile ? '16px' : '20px',
                 color: COLORS.text, fontSize: isMobile ? '16px' : '20px', lineHeight: '1.8', listStyleType: 'disc', maxWidth: '600px', margin: '0 auto'
                }}>
-                <li>Impulsar la creación y exhibición de arte tecnológico contemporáneo.</li>
-                <li>Exponer al público general a prácticas emergentes y accesibles.</li>
-                <li>Fortalecer las redes culturales, académicas y tecnológicas del ecosistema local.</li>
+                <li>{t('home.objective1')}</li>
+                <li>{t('home.objective2')}</li>
+                <li>{t('home.objective3')}</li>
               </ul>
           </div>
         </div>
+      </section>
+
+      {/* History Section */}
+      <section id="history" style={{
+        minHeight: '60dvh',
+        width: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: COLORS.dark,
+        scrollSnapAlign: 'start',
+        boxSizing: 'border-box',
+        padding: isMobile ? '60px 20px' : '80px 40px',
+        textAlign: 'center'
+      }}>
+        <h2 style={{
+          fontSize: isMobile ? '32px' : '42px',
+          color: COLORS.cream,
+          marginBottom: isMobile ? '16px' : '20px'
+        }}>
+          {t('home.historyTitle')}
+        </h2>
+        <p style={{
+          fontSize: isMobile ? '14px' : '18px',
+          color: COLORS.tan,
+          lineHeight: '1.8',
+          maxWidth: '600px',
+          margin: '0 auto',
+          marginBottom: isMobile ? '24px' : '32px',
+          padding: '0 20px'
+        }}>
+          {t('home.historyDesc')}
+        </p>
+        <Link
+          to="/history"
+          style={{
+            display: 'inline-block',
+            padding: isMobile ? '12px 30px' : '15px 40px',
+            fontSize: isMobile ? '14px' : '16px',
+            backgroundColor: 'transparent',
+            color: COLORS.cream,
+            border: `2px solid ${COLORS.cream}`,
+            cursor: 'pointer',
+            transition: 'all 0.3s',
+            textDecoration: 'none',
+            fontFamily: FONT
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = COLORS.red;
+            e.currentTarget.style.borderColor = COLORS.red;
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = 'transparent';
+            e.currentTarget.style.borderColor = COLORS.cream;
+          }}
+        >
+          {t('home.exploreArchive')}
+        </Link>
       </section>
 
       {/* Interact Section with Triangle Animation */}
@@ -450,7 +513,7 @@ Crear un espacio accesible, inclusivo y dinámico donde artistas y comunidades p
               color: COLORS.dark,
               marginBottom: '20px'
             }}>
-              Interactuar
+              {t('home.interactTitle')}
             </h2>
             <p style={{
               fontSize: isMobile ? '16px' : '20px',
@@ -458,7 +521,7 @@ Crear un espacio accesible, inclusivo y dinámico donde artistas y comunidades p
               lineHeight: '1.8',
               marginBottom: '30px'
             }}>
-              Interactúa con el arte.
+              {t('home.interactText')}
             </p>
 
             {/* Audio Control Button */}
@@ -476,7 +539,7 @@ Crear un espacio accesible, inclusivo y dinámico donde artistas y comunidades p
                   fontFamily: FONT
                 }}
               >
-                {isAudioEnabled ? 'Sonido Activo' : 'Activar Sonido'}
+                {isAudioEnabled ? t('home.soundActive') : t('home.enableSound')}
               </button>
             </div>
 
@@ -501,7 +564,7 @@ Crear un espacio accesible, inclusivo y dinámico donde artistas y comunidades p
                 e.currentTarget.style.backgroundColor = COLORS.red;
               }}
             >
-              Lanzar Interfaz Interactiva
+              {t('home.launchInterface')}
             </Link>
           </div>
         </div>
@@ -517,7 +580,7 @@ Crear un espacio accesible, inclusivo y dinámico donde artistas y comunidades p
         boxSizing: 'border-box'
       }}>
         <p style={{ margin: 0, fontSize: '14px' }}>
-          © 2026 Festival Iámbica. Puerto Rico.
+          {t('home.footer')}
         </p>
       </footer>
     </div>
