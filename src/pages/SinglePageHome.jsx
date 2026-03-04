@@ -1,5 +1,5 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation, Trans } from 'react-i18next';
 import { useAudio } from '../hooks/useAudio';
 import { useMobile } from '../hooks/useMobile';
@@ -16,6 +16,7 @@ import P5BallsSketch from '../components/P5BallsSketch';
 const SinglePageHome = () => {
   const { isMobile, width, height } = useMobile();
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const [mousePos, setMousePos] = useState({
     x: window.innerWidth / 2,
     y: window.innerHeight / 2
@@ -412,7 +413,7 @@ const SinglePageHome = () => {
         scrollSnapAlign: 'start',
         boxSizing: 'border-box',
       }}>
-        <div style={{ position: 'absolute', inset: 0 }}>
+        <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
           <P5BallsSketch height="100%" />
         </div>
         <div style={{
@@ -443,8 +444,8 @@ const SinglePageHome = () => {
           }}>
             {t('home.historyDesc')}
           </p>
-          <Link
-            to="/history"
+          <button
+            onClick={() => navigate('/history')}
             style={{
               display: 'inline-block',
               padding: isMobile ? '12px 30px' : '15px 40px',
@@ -454,7 +455,6 @@ const SinglePageHome = () => {
               border: `2px solid ${COLORS.dark}`,
               cursor: 'pointer',
               transition: 'all 0.3s',
-              textDecoration: 'none',
               fontFamily: FONT,
             }}
             onMouseEnter={(e) => {
@@ -469,7 +469,7 @@ const SinglePageHome = () => {
             }}
           >
             {t('home.exploreArchive')}
-          </Link>
+          </button>
         </div>
       </section>
 
