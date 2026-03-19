@@ -171,6 +171,22 @@ const SinglePageHome = () => {
     }
   };
 
+  // Shared mask styles for seamless section blending
+  const fadeTop = 'transparent 0%, black 12%';
+  const fadeBottom = 'black 88%, transparent 100%';
+  const fadeBoth = {
+    WebkitMaskImage: `linear-gradient(to bottom, ${fadeTop}, ${fadeBottom})`,
+    maskImage: `linear-gradient(to bottom, ${fadeTop}, ${fadeBottom})`,
+  };
+  const fadeBottomOnly = {
+    WebkitMaskImage: `linear-gradient(to bottom, black 0%, ${fadeBottom})`,
+    maskImage: `linear-gradient(to bottom, black 0%, ${fadeBottom})`,
+  };
+  const fadeTopOnly = {
+    WebkitMaskImage: `linear-gradient(to bottom, ${fadeTop}, black 100%)`,
+    maskImage: `linear-gradient(to bottom, ${fadeTop}, black 100%)`,
+  };
+
   return (
     <div style={{
       fontFamily: FONT,
@@ -178,19 +194,21 @@ const SinglePageHome = () => {
       width: '100%',
       overflow: 'auto',
       overflowX: 'hidden',
-      scrollSnapType: 'y proximity'
+      scrollSnapType: 'y proximity',
+      backgroundColor: COLORS.cream
     }}>
       {/* Sticky Header */}
       <Header />
 
       {/* Welcome Section with Cube */}
       <section id="welcome" style={{
-        minHeight: '100dvh',
+        minHeight: '110dvh',
         width: '100%',
         position: 'relative',
         overflow: 'hidden',
         scrollSnapAlign: 'start',
-        boxSizing: 'border-box'
+        boxSizing: 'border-box',
+        ...fadeBottomOnly
       }}>
         <InteractSketch fullscreen />
         <div style={{
@@ -233,7 +251,7 @@ const SinglePageHome = () => {
             onClick={() => scrollToSection('about')}
             style={{
               position: 'absolute',
-              bottom: '40px',
+              bottom: '18%',
               left: '50%',
               transform: 'translateX(-50%)',
               padding: isMobile ? '8px 20px' : '10px 25px',
@@ -263,12 +281,14 @@ const SinglePageHome = () => {
 
       {/* About Section with Cellular Automaton */}
       <section id="about" style={{
-        minHeight: '100dvh',
+        minHeight: '110dvh',
         width: '100%',
         position: 'relative',
         overflow: 'hidden',
         scrollSnapAlign: 'start',
-        boxSizing: 'border-box'
+        boxSizing: 'border-box',
+        marginTop: '-10dvh',
+        ...fadeBoth
       }}>
         <SamuelYanShader fullscreen />
         <div style={{
@@ -326,7 +346,7 @@ const SinglePageHome = () => {
 
       {/* Mission Section with Cube */}
       <section id="mission" style={{
-        minHeight: '100dvh',
+        minHeight: '110dvh',
         width: '100%',
         display: 'flex',
         flexDirection: 'column',
@@ -334,7 +354,11 @@ const SinglePageHome = () => {
         justifyContent: 'center',
         backgroundColor: COLORS.cream,
         scrollSnapAlign: 'start',
-        boxSizing: 'border-box'
+        boxSizing: 'border-box',
+        position: 'relative',
+        zIndex: 1,
+        marginTop: '-10dvh',
+        ...fadeBoth
       }}>
         <h2 style={{
           fontSize: isMobile ? '32px' : '42px',
@@ -359,12 +383,14 @@ const SinglePageHome = () => {
 
       {/* Philosophy Section */}
       <section id="philosophy" style={{
-        minHeight: '100dvh',
+        minHeight: '110dvh',
         width: '100%',
         position: 'relative',
         overflow: 'hidden',
         scrollSnapAlign: 'start',
-        boxSizing: 'border-box'
+        boxSizing: 'border-box',
+        marginTop: '-10dvh',
+        ...fadeBoth
       }}>
         <PhilosophyShader fullscreen />
         <div style={{
@@ -406,12 +432,14 @@ const SinglePageHome = () => {
 
       {/* History Section */}
       <section id="history" style={{
-        height: '100dvh',
+        height: '110dvh',
         width: '100%',
         position: 'relative',
         overflow: 'hidden',
         scrollSnapAlign: 'start',
         boxSizing: 'border-box',
+        marginTop: '-10dvh',
+        ...fadeBoth
       }}>
         <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
           <P5BallsSketch height="100%" />
@@ -475,14 +503,16 @@ const SinglePageHome = () => {
 
       {/* Interact Section with Triangle Animation */}
       <section id="interact" style={{
-        minHeight: '100dvh',
-        height: '100dvh',
+        minHeight: '110dvh',
+        height: '110dvh',
         width: '100%',
         position: 'relative',
         backgroundColor: COLORS.cream,
         overflow: 'hidden',
         scrollSnapAlign: 'start',
-        boxSizing: 'border-box'
+        boxSizing: 'border-box',
+        marginTop: '-10dvh',
+        ...fadeTopOnly
       }}>
         <svg
           ref={svgRef}

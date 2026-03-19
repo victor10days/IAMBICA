@@ -52,10 +52,31 @@ const StatusBadge = ({ isConnected, currentMode, userId, isActive, totalUsers, u
 };
 
 
+// Generate or retrieve a persistent client ID so reconnecting users keep the same userId
+function getClientId() {
+  const KEY = 'iambica_client_id';
+  let id = localStorage.getItem(KEY);
+  if (!id) {
+    // crypto.randomUUID() is only available in secure contexts (HTTPS/localhost),
+    // so fall back to a manual UUID for HTTP over local network
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+      id = crypto.randomUUID();
+    } else {
+      id = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+        const r = (Math.random() * 16) | 0;
+        return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16);
+      });
+    }
+    localStorage.setItem(KEY, id);
+  }
+  return id;
+}
+
 const Interact = () => {
   const canvasRef = useRef(null);
   const wsRef = useRef(null);
-  const { t, i18n } = useTranslation();
+  const clientIdRef = useRef(getClientId());
+  const { t } = useTranslation();
 
   // Use refs for values that the animation loop needs (avoids re-creating loop)
   const mousePosRef = useRef({ x: 0.5, y: 0.5 });
@@ -101,8 +122,19 @@ const Interact = () => {
 
   // Store translation function ref for canvas drawing
   const tRef = useRef(t);
-  const langRef = useRef(i18n.language);
-  useEffect(() => { tRef.current = t; langRef.current = i18n.language; }, [t, i18n.language]);
+  useEffect(() => { tRef.current = t; }, [t]);
+
+  // Throttle coordinate display updates to ~10fps to avoid excessive re-renders
+  const mousePosTimerRef = useRef(null);
+  const updateMousePosDisplay = useCallback((pos) => {
+    mousePosRef.current = pos;
+    if (!mousePosTimerRef.current) {
+      mousePosTimerRef.current = setTimeout(() => {
+        setMousePos({ ...mousePosRef.current });
+        mousePosTimerRef.current = null;
+      }, 100);
+    }
+  }, []);
 
   // Send OSC message
   const sendOSC = useCallback((address, args) => {
@@ -122,10 +154,21 @@ const Interact = () => {
     setConnectionStatus('connecting');
 
     try {
-      const ws = new WebSocket(`ws://${oscHost}:${oscPort}`);
+      const ws = new WebSocket(`ws://${oscHost}:${oscPort}?clientId=${clientIdRef.current}`);
       wsRef.current = ws;
 
+      // Timeout if connection doesn't establish within 5 seconds
+      const connectTimeout = setTimeout(() => {
+        if (ws.readyState !== WebSocket.OPEN) {
+          console.log('Connection timed out');
+          ws.close();
+          setConnectionStatus('error');
+          setIsConnected(false);
+        }
+      }, 5000);
+
       ws.onopen = () => {
+        clearTimeout(connectTimeout);
         setIsConnected(true);
         setConnectionStatus('connected');
         console.log('Connected to OSC bridge');
@@ -180,12 +223,15 @@ const Interact = () => {
     setConnectionStatus('disconnected');
   }, []);
 
-  // Cleanup WebSocket on unmount
+  // Cleanup on unmount
   useEffect(() => {
     return () => {
       if (wsRef.current) {
         wsRef.current.close();
         wsRef.current = null;
+      }
+      if (mousePosTimerRef.current) {
+        clearTimeout(mousePosTimerRef.current);
       }
     };
   }, []);
@@ -214,13 +260,10 @@ const Interact = () => {
     const x = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
     const y = Math.max(0, Math.min(1, (clientY - rect.top) / rect.height));
 
-    mousePosRef.current = { x, y };
-    setMousePos({ x, y });
+    updateMousePosDisplay({ x, y });
 
-    sendOSC('/mouse/x', [x]);
-    sendOSC('/mouse/y', [y]);
     sendOSC('/mouse/xy', [x, y]);
-  }, [sendOSC]);
+  }, [sendOSC, updateMousePosDisplay]);
 
   const handlePressStart = useCallback((clientX, clientY) => {
     isPressingRef.current = true;
@@ -479,43 +522,21 @@ const Interact = () => {
         t={t}
       />
 
-      {/* Header - Hidden on mobile */}
+      {/* Header - Logo only, hidden on mobile (mobile has its own logo) */}
       {!isMobile && (
-        <header style={{
+        <Link to="/" style={{
           position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          padding: '20px 40px',
-          zIndex: 10,
-          pointerEvents: 'none'
+          top: '20px',
+          left: '40px',
+          fontSize: '24px',
+          fontWeight: 'bold',
+          color: COLORS.text,
+          fontFamily: FONT,
+          textDecoration: 'none',
+          zIndex: 10
         }}>
-          <Link to="/" style={{
-            fontSize: '24px',
-            fontWeight: 'bold',
-            color: COLORS.text,
-            fontFamily: FONT,
-            textDecoration: 'none',
-            pointerEvents: 'auto'
-          }}>
-            I<span style={{ color: COLORS.red }}>A</span>MBICA
-          </Link>
-
-          <nav style={{
-            display: 'flex',
-            gap: '40px',
-            alignItems: 'center',
-            pointerEvents: 'auto'
-          }}>
-            <Link to="/" state={{ scrollTo: 'about' }} style={{ color: COLORS.text, textDecoration: 'none', fontFamily: FONT, fontSize: '16px' }}>{t('nav.about')}</Link>
-            <Link to="/" state={{ scrollTo: 'mission' }} style={{ color: COLORS.text, textDecoration: 'none', fontFamily: FONT, fontSize: '16px' }}>{t('nav.mission')}</Link>
-            <Link to="/" state={{ scrollTo: 'philosophy' }} style={{ color: COLORS.text, textDecoration: 'none', fontFamily: FONT, fontSize: '16px' }}>{t('nav.philosophy')}</Link>
-            <Link to="/interact" style={{ color: COLORS.red, textDecoration: 'none', fontFamily: FONT, fontSize: '16px' }}>{t('nav.interact')}</Link>
-          </nav>
-        </header>
+          I<span style={{ color: COLORS.red }}>A</span>MBICA
+        </Link>
       )}
 
       {/* Mobile Logo */}
@@ -554,7 +575,13 @@ const Interact = () => {
         maxWidth: isMobile ? '260px' : '400px',
         borderRadius: '2px',
         touchAction: 'manipulation'
-      }}>
+      }}
+        onPointerDown={(e) => e.stopPropagation()}
+        onTouchStart={(e) => e.stopPropagation()}
+        onTouchMove={(e) => e.stopPropagation()}
+        onTouchEnd={(e) => e.stopPropagation()}
+        onMouseDown={(e) => e.stopPropagation()}
+      >
         {/* Connection status message */}
         {connectionStatus === 'error' && (
           <div style={{

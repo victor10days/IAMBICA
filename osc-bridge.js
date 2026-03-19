@@ -41,6 +41,7 @@ const clients = new Map(); // ws -> { userId, lastPosition, zone }
 let nextUserId = 1;
 let activeUserId = null; // For 'single' mode
 const userPositions = new Map(); // userId -> { x, y }
+const clientIdToUserId = new Map(); // persistent clientId -> userId (remembers returning users)
 
 // Create raw UDP socket for sending OSC
 const udpSocket = dgram.createSocket('udp4');
@@ -133,11 +134,9 @@ const modeHandlers = {
   // Each user gets their own OSC channel
   separate: (userId, address, args) => {
     sendOSCMessage(`/user/${userId}${address}`, args);
-    sendOSCMessage('/users/count', [clients.size]);
-
-    // Also send aggregate bundle so receivers can read all positions at once:
-    // /users/bundle [count, u1_id, u1_x, u1_y, u2_id, u2_x, u2_y, ...]
-    if (address === '/mouse/xy' || address === '/mouse/x' || address === '/mouse/y') {
+    // Send bundle only on /mouse/xy (the final message in an xy expansion)
+    if (address === '/mouse/xy') {
+      sendOSCMessage('/users/count', [clients.size]);
       sendUserBundle();
     }
   },
@@ -244,32 +243,42 @@ Multi-station example:
 Waiting for connections...
 `);
 
-wss.on('connection', (ws) => {
-  const userId = nextUserId++;
-  const zone = currentMode === 'zones' ? assignZone(userId) : null;
+wss.on('connection', (ws, req) => {
+  // Resolve userId from persistent clientId (passed via URL query param)
+  console.log(`\n[DEBUG] req.url = "${req.url}"`);
+  const params = new URL(req.url, 'http://localhost').searchParams;
+  const clientId = params.get('clientId');
+  console.log(`[DEBUG] clientId = "${clientId}", known clients: ${clientIdToUserId.size}`);
+  let userId;
 
+  if (clientId && clientIdToUserId.has(clientId)) {
+    userId = clientIdToUserId.get(clientId);
+    console.log(`↩ Returning user: ${clientId.slice(0, 8)}… → User ${userId}`);
+  } else {
+    userId = nextUserId++;
+    if (clientId) {
+      clientIdToUserId.set(clientId, userId);
+      console.log(`★ New user: ${clientId.slice(0, 8)}… → User ${userId}`);
+    }
+  }
+
+  const zone = currentMode === 'zones' ? assignZone(userId) : null;
   clients.set(ws, { userId, zone, lastPosition: { x: 0.5, y: 0.5 } });
   userPositions.set(userId, { x: 0.5, y: 0.5 });
 
-  // Set first user as active in single mode
   if (currentMode === 'single' && activeUserId === null) {
     activeUserId = userId;
   }
 
   console.log(`✓ User ${userId} connected (${clients.size} total)${zone ? ` [Zone ${zone}]` : ''}`);
 
-  // Send initial state to new client
   sendClientState(ws);
-
-  // Notify all clients of user count change
   broadcast({ type: 'userCount', count: clients.size });
 
-  // Handle incoming messages
   ws.on('message', (message) => {
     try {
       const data = JSON.parse(message);
 
-      // Handle control messages
       if (data.type === 'setMode' && data.mode) {
         currentMode = data.mode;
         console.log(`\nMode changed to: ${currentMode}`);
@@ -306,22 +315,24 @@ wss.on('connection', (ws) => {
         const client = clients.get(ws);
         if (!client) return;
 
-        // Update last position
+        const handler = modeHandlers[currentMode];
+        if (!handler) return;
+
+        // Expand /mouse/xy into individual x, y, and xy messages server-side
+        // so only one WebSocket message is needed per move
         if (data.address === '/mouse/xy' && data.args.length >= 2) {
           client.lastPosition = { x: data.args[0], y: data.args[1] };
-        }
-
-        // Route to appropriate mode handler
-        const handler = modeHandlers[currentMode];
-        if (handler) {
+          handler(client.userId, '/mouse/x', [data.args[0]], ws);
+          handler(client.userId, '/mouse/y', [data.args[1]], ws);
+          handler(client.userId, '/mouse/xy', data.args, ws);
+          process.stdout.write(`\r[${currentMode}] User ${client.userId}: xy [${data.args[0].toFixed(3)}, ${data.args[1].toFixed(3)}]    `);
+        } else {
           handler(client.userId, data.address, data.args, ws);
+          const values = data.args.map(v =>
+            typeof v === 'number' ? v.toFixed(3) : v
+          ).join(', ');
+          process.stdout.write(`\r[${currentMode}] User ${client.userId}: ${data.address} [${values}]    `);
         }
-
-        // Log output
-        const values = data.args.map(v =>
-          typeof v === 'number' ? v.toFixed(3) : v
-        ).join(', ');
-        process.stdout.write(`\r[${currentMode}] User ${client.userId}: ${data.address} [${values}]    `);
       }
     } catch (error) {
       console.error('\nError parsing message:', error);
