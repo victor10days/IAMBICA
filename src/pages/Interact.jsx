@@ -154,18 +154,20 @@ const Interact = () => {
     setConnectionStatus('connecting');
 
     try {
-      const ws = new WebSocket(`ws://${oscHost}:${oscPort}?clientId=${clientIdRef.current}`);
+      const wsUrl = `ws://${oscHost}:${oscPort}?clientId=${clientIdRef.current}`;
+      console.log('Attempting WebSocket connection to:', wsUrl);
+      const ws = new WebSocket(wsUrl);
       wsRef.current = ws;
 
-      // Timeout if connection doesn't establish within 5 seconds
+      // Timeout if connection doesn't establish within 15 seconds
       const connectTimeout = setTimeout(() => {
         if (ws.readyState !== WebSocket.OPEN) {
-          console.log('Connection timed out');
+          console.log('Connection timed out after 15 seconds');
           ws.close();
           setConnectionStatus('error');
           setIsConnected(false);
         }
-      }, 5000);
+      }, 15000);
 
       ws.onopen = () => {
         clearTimeout(connectTimeout);
@@ -194,6 +196,8 @@ const Interact = () => {
 
       ws.onerror = (error) => {
         console.error('WebSocket error:', error);
+        console.error('Failed to connect to:', `ws://${oscHost}:${oscPort}`);
+        console.error('Make sure you are on the same network and using the correct IP address');
         setConnectionStatus('error');
       };
 

@@ -14,7 +14,6 @@
     "seed": "node server/seed.js"
   },
   "dependencies": {
-    "@rolldown/binding-darwin-arm64": "^1.0.0-rc.4",
     "better-sqlite3": "^12.6.2",
     "cors": "^2.8.6",
     "express": "^5.2.1",
@@ -38,9 +37,6 @@
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.4.24",
     "globals": "^16.5.0",
-    "vite": "npm:rolldown-vite@7.2.5"
-  },
-  "overrides": {
-    "vite": "npm:rolldown-vite@7.2.5"
+    "vite": "^6.3.5"
   }
 }
