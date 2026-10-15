@@ -38,5 +38,10 @@
     "eslint-plugin-react-refresh": "^0.4.24",
     "globals": "^16.5.0",
     "vite": "^6.3.5"
+  },
+  "overrides": {
+    "osc": {
+      "ws": "$ws"
+    }
   }
 }

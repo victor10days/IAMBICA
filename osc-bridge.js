@@ -69,7 +69,7 @@ function sendOSCMessage(address, oscArgs) {
 // Format: /users/bundle [count, u1_id, u1_x, u1_y, u2_id, u2_x, u2_y, ...]
 function sendUserBundle() {
   const positions = [];
-  for (const [ws, client] of clients) {
+  for (const client of clients.values()) {
     const pos = userPositions.get(client.userId) || { x: 0.5, y: 0.5 };
     positions.push(client.userId, pos.x, pos.y);
   }
